@@ -20,7 +20,7 @@ head(locs1)
 locs2 <- arrange(locs1, SwB_Wpt_ID, ObOrder_Time)
 locs3 <- mutate(locs2, dummy_date = (seq(as.Date("2011/5/22"), as.Date("1995/1/1"), by=-1)))
 
-proj4 <- CRS("+proj=utm +zone=8 + datum=WGS84 + ellps=WGS84") 
+					proj4 <- CRS("+proj=utm +zone=8 + datum=WGS84 + ellps=WGS84") 
 					
 					tmp <- locs3 %>%
 								dplyr::select(x = whale_easting, y = whale_northing) %>%
