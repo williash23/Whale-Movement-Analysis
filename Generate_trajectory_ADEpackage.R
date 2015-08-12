@@ -8,11 +8,12 @@
 require(stats)
 require(plyr)
 require(dplyr)
+require(rgdal)
 library(adehabitatLT)						
 library(adehabitatMA)
 
 #  Read in whale location data (all whale observations)
-locs1 <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/Whale_Pts.csv")
+locs1 <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/Whale_Pts.csv")
 head(locs1)
 
 #  Arrange locations in order of the same whale (so in a group of multiple observations)
@@ -33,7 +34,7 @@ whales_traj <- as.ltraj(xy =locs4[,c("x","y")], date =as.POSIXct(locs4$dummy_dat
 
 
 whales_traj
-head(whales_traj[[1]])
+head(whales_traj)
 plot(whales_traj[[1]])
 
 #################################################################################################

@@ -1,21 +1,27 @@
+# Code from Josh Nowak - adjusted to remove need for dates and time interval
+# 8/6/2015
+# Function to generate step length and turning angles
+################################################################################
+
 #  This function takes the telemetry data and calculates bearing, step length, 
 #  time between fixes in hours and turn angles.  Each calculation should be 
 #  interpreted as the step length it took to get to where you are now.  In other
 #  words, the data on line two is the result of what happened between row 1 and 
-#  row 2.  The function does not accept lists for the loc_data.
+#  row 2.  The function does not accept lists for the loc.data.
 
-move_fun <- function(loc_data, dates){
-        interval <- c(NA, difftime(dates[-1], dates[-length(dates)], 
-                      units = "days"))
-      
+
+
+
+move.fun <- function(loc.data){
+
         # Create three datasets
-        len <- nrow(loc_data)
-        d1 <- loc_data[-c(len-1, len),c("x","y")]
-        d2 <- loc_data[-c(1, len),c("x","y")]
-        d3 <- loc_data[-c(1:2),c("x","y")]
+        len <- nrow(loc.data)
+        d1 <- loc.data[-c(len-1, len),c("x","y")]
+        d2 <- loc.data[-c(1, len),c("x","y")]
+        d3 <- loc.data[-c(1:2),c("x","y")]
         
         #  Function for calculating steps and turns       
-       angle_fun <- function(xx,yy,bearing=TRUE,as.deg=FALSE){
+       anglefun <- function(xx,yy,bearing=TRUE,as.deg=FALSE){
 
         ## calculates the compass bearing of the line between two points
         ## xx and yy are the differences in x and y coordinates between two points
@@ -38,7 +44,7 @@ move_fun <- function(loc_data, dates){
         return(tempangle*c)
         }
 
-        bearing_ta <- function(loc1,loc2,loc3,as.deg=FALSE){
+        bearing.ta <- function(loc1,loc2,loc3,as.deg=FALSE){
         ## calculates the bearing and length of the two lines
         ##    formed by three points
         ## the turning angle from the first bearing to the
@@ -63,8 +69,8 @@ move_fun <- function(loc_data, dates){
         if(any(locdiff2$x == 0 | locdiff2$y == 0)){
             locdiff2[locdiff2$x == 0 | locdiff2$y == 0,] <- 0.01
         }
-        bearing1<-angle_fun(locdiff1[1],locdiff1[2],bearing=F)
-        bearing2<-angle_fun(locdiff2[1],locdiff2[2],bearing=F)
+        bearing1<-anglefun(locdiff1[1],locdiff1[2],bearing=F)
+        bearing2<-anglefun(locdiff2[1],locdiff2[2],bearing=F)
 
         if(is.data.frame(locdiff1)){
         dist1<-sqrt(rowSums(locdiff1^2))
@@ -83,15 +89,12 @@ move_fun <- function(loc_data, dates){
         ta=unlist(ta*c),dist1=unlist(dist1),dist2=unlist(dist2)))
         }
         
-        xxx <- bearing_ta(d1, d2, d3)
-        loc_data$turn.angle <- c(NA, NA, xxx$ta)
-        loc_data$heading <- c(NA, xxx$bearing1, 
+        xxx <- bearing.ta(d1, d2, d3)
+        loc.data$turn.angle <- c(NA, NA, xxx$ta)
+        loc.data$heading <- c(NA, xxx$bearing1, 
                               xxx$bearing2[length(xxx$bearing2)])
-        loc_data$dist <- c(NA, xxx$dist1, xxx$dist2[length(xxx$dist2)])
-        loc_data$dt <- interval
-        loc_data$speed <- (loc_data$dist/1000)/(interval/60/60)
-        loc_data$mph <- loc_data$speed * 0.62137119224
+        loc.data$dist <- c(NA, xxx$dist1, xxx$dist2[length(xxx$dist2)])
               
-        return(loc_data)
+        return(loc.data)
         }
         
