@@ -1,7 +1,7 @@
 #  Create Random points by building and sampling from an empirical distribution
 
 # random empirical sample
-r_emp = function(data.out, mids.lower.upper = "upper", b = 500, nout){
+r_emp <- function(data.out, mids.lower.upper = "upper", b = 500, nout =1000){
     n = length(data.out)
     a.r = runif(nout,0,n)
     a.h = hist(data.out, plot = FALSE, breaks = b)
@@ -18,7 +18,7 @@ r_emp = function(data.out, mids.lower.upper = "upper", b = 500, nout){
 }
 
 ###  Turn angles
-samp.turn <- function(data.out, mids.lower.upper = "mids", b = 100, nout){
+samp.turn <- function(data.out, mids.lower.upper = "mids", b = 100, nout = 1000){
     n = length(data.out)
     a.r = runif(nout,0,n)
     a.h = hist(data.out, plot = FALSE, breaks = b)
@@ -45,12 +45,12 @@ destination <-function(x,y,dist,bearing,as.deg=FALSE){
 }
 ################################################################################
 #  To run the above
-
+	
     create.rand <- function(data.out, as.deg=FALSE, turn = F){
-          tmp1 <- r_emp(data.out$dist)
+          tmp1 <- r_emp(data.out$dist, nout=nrow(data.out))
           if(turn == T){
             tmp2 <- samp.turn(data.out$turn.angle, mids.lower.upper = "mids",
-                            length.out = 25)
+                            nout = nrow(data.out))
             tmp3 <- destination(data.out$x, data.out$y, tmp1, tmp2, as.deg = F)
           }else(tmp3 <- destination(data.out$x, data.out$y, tmp1, 
                           runif(nrow(data.out), -3.14, 3.14), as.deg = F) )
@@ -59,3 +59,13 @@ destination <-function(x,y,dist,bearing,as.deg=FALSE){
       return(c.rand)
       }
       
+	nrep <- 3  
+	poss_mov <- bind_rows(lapply(1:nrep, create.rand))
+	
+		
+	
+	
+	#  Run function to create and draw from empircal distributions.
+		emp.dist <- data.out %>%
+									do(create.rand(.)) %>%
+									as.data.frame(.)

@@ -1,0 +1,474 @@
+#
+#
+# Velocity-based movement model with an
+# unknown number of change points (BDMCMC)
+#
+# Author: Ephraim Hanks
+# Contact: hanks@stat.colostate.edu
+#
+# Last Updated: 20110603
+#
+# Reference:
+# Hanks EM, MB Hooten, DS Johnson, and JT Sterling. Velocity
+# movement modeling for individual and population level infe
+#
+#
+# Required Packages: cellmove.jabes
+# (available from http://warnercnr.colostate.edu/~hooten/oth
+#
+#
+#Inputs:
+#
+# sim.obj - A fit from the CRAWL continuous time correlated
+# on the telemetry data in question.
+# Cov.df - A list containing the following elements:
+# 1. X - a data frame with the x and y locations of covariat
+# grid cells, and the actual covariate values at those
+# locations
+# 2. X.grad.x - a data frame containing the x component of t
+# gradient of each covariate, by columns.
+# 3. X.grad.y - a data frame containing the y component of t
+# gradient of each covariate, by columns.
+# 4. xy - a 2-column matrix containing the x and y locations
+# of covariate grid cells
+# lambda - prior parameter for K
+# max.partitions - the maximum number of partitions allowed
+# tau.min - smallest time value where change points are allo
+# (needed to keep a partition from collapsing to only 1 or 2
+# tau.max - largest time value where change points are allow
+# (needed to keep a partition from collapsing to only 1 or 2
+# tau.start - vector of start times for the change points ta
+# tau.tune - tuning parameter (bandwidth of proposal dist'n
+# tau.buffer - smallest time allowed between change points
+# (needed to keep a partition from collapsing to only 1 or 2
+# betastrt - start values for beta (list with one vector for
+# betamean - prior mean for beta (one vector - shared by all
+# betavar - prior variance for beta (one number - shared by
+# s2.start - start value for sigma^2
+# s2.mean - prior mean on the IG dist'n for sigma^2
+# s2sd - prior standard deviation on the IG dist'n for sigma
+# timestep.bd - "length of time" to run the Birth-Death proc
+# birth.rate - Poisson rate of birth in BDMCMC process
+# birth.dist - Birth distribution - a list with the followi
+# 1. beta.means - a p by T matrix with mean values for the
+# betas at each time point
+# 2. beta.sd - a p by T matrix with standard deviations
+# for the betas at each time point
+# bd.var.inf - Tuning parameter in Birth-Death process
+# n.mcmc - Number of MCMC iterations to run
+# show.tau - Logical. If TRUE, then the change points (tau)
+# each iteration. Useful for guaging how well the BDMCMC pr
+# is mixing.
+
+
+move.reg.bd.pois <-function(sim.obj,Cov.df,lambda,max.parti
+tau.max,tau.start,tau.tune,tau.buffer,betastrt,betamean,bet
+s2mean,s2sd,timestep.bd=1,birth.rate=1,birth.dist,bd.var.in
+show.tau=FALSE){
+
+
+###
+### subroutines
+###
+
+invgammastrt <- function(igmn,igvar){
+q <- 2+(igmn^2)/igvar
+r <- 1/(igmn*(q-1))
+list(r=r,q=q)
+}
+
+
+get.Q <- function(X,X.grad.x,X.grad.y,loc.idx){
+n.X=dim(X.grad.x)[2]
+path.length=length(loc.idx)
+Q=matrix(NA,nrow=2*(path.length-1),ncol=n.X)
+for(i in 1:n.X){
+Q[,i] <- c(X.grad.x[loc.idx[-path.length],i],X.grad.y[loc.i
+}
+Q
+}
+
+
+get.path.idx <- function(xy,path.list){
+min.x = min(diff(sort(xy[, 1]))[diff(sort(xy[, 1])) > 0])
+min.y = min(diff(sort(xy[, 2]))[diff(sort(xy[, 2])) > 0])
+x.uniq = sort(unique(xy[, 1]))
+y.uniq = sort(unique(xy[, 2]))
+ny = length(y.uniq)
+nx = length(x.uniq)
+x.breaks = c(x.uniq - min.x/2, max(x.uniq) + min.x/2)
+y.breaks = c(y.uniq - min.y/2, max(y.uniq) + min.y/2)
+tmp.x.g = findInterval(path.list[, 1], x.breaks)
+tmp.y.g = findInterval(path.list[, 2], y.breaks)
+tmp.x.y.g = (tmp.y.g-1)*nx + tmp.x.g
+tmp.rle = rle(tmp.x.y.g)
+tmp.d = tmp.rle$lengths
+tmp.locs = tmp.rle$values
+tmp.locs.full=rep(tmp.locs,tmp.d)
+path.idx.list <- tmp.locs.full[-length(tmp.locs.full)]
+path.idx.list
+}
+
+
+
+mv <- function(z,Q,tau,beta){
+mvec=rep(NA,length(z))
+tau.aug=c(tau,length(z)/2+1)
+for(r in 1:length(tau)){
+idx.current=c(tau.aug[r]:(tau.aug[r+1]-1),(length(z)/2+tau.
+if(ncol(Q)>1){
+mvec[idx.current] <- Q[idx.current,]%*%beta[[r]]
+}
+else{
+mvec[idx.current] <- Q[idx.current,]*beta[[r]]
+}
+}
+mvec
+}
+
+
+##
+## Preliminaries
+##
+birth.beta.means=birth.dist$beta.means
+birth.beta.sd=bd.var.inf*birth.dist$beta.sd
+birth.tau.dens=birth.dist$tau.prob
+
+
+
+X=Cov.df$X
+X.grad.x=Cov.df$X.grad.x
+X.grad.y=Cov.df$X.grad.y
+xy=Cov.df$xy
+
+
+datetime=sim.obj$datetime
+datetime=datetime[1:(length(datetime)-2)]
+
+
+###
+### hyperpriors
+###
+
+#browser()
+
+n=dim(X.grad.x)[1]
+p=dim(X.grad.x)[2]
+num.part=length(tau.start)+1
+
+beta0=matrix(betamean,p,1)
+Sig0=betavar*diag(p)
+r=invgammastrt(s2mean,(s2sd^2))$r
+q=invgammastrt(s2mean,(s2sd^2))$q
+
+params.save=list()
+numstates.save=rep(NA,n.mcmc)
+
+
+
+###
+### start values
+###
+
+beta=list()
+for(i in 1:length(betastrt)){
+beta[[i]] <- betastrt[[i]]
+}
+beta[[length(betastrt)+1]] <- length(betastrt)
+tau=tau.start
+s2=s2.start
+acc.count=0
+K=length(tau)
+
+
+
+###
+### Start Crawl path
+###
+
+keep.idx=0
+while(keep.idx==0){
+samp.new <- crwPostIS(sim.obj, fullPost=FALSE)
+path.list=cbind(samp.new$alpha.sim.x[,'mu'], samp.new$alpha
+path.loc.idx=get.path.idx(xy,path.list)
+if(min(path.loc.idx)>0 & max(path.loc.idx)<10000){
+keep.idx=1
+}
+}
+y.seal=path.list[-1,]-path.list[-dim(path.list)[1],]
+Q=get.Q(X,X.grad.x,X.grad.y,path.loc.idx)
+z=c(y.seal[-(dim(y.seal)[1]),1],y.seal[-(dim(y.seal)[1]),2]
+meanvec=mv(z,Q,tau,beta)
+loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+
+#samp <- crwPostIS(sim.obj, fullPost=FALSE)
+#path.list=cbind(samp$alpha.sim.x[,'mu'], samp$alpha.sim.y[
+#path.loc.idx=get.path.idx(xy,path.list)
+#y.seal=path.list[-1,]-path.list[-dim(path.list)[1],]
+#Q=get.Q(X,X.grad.x,X.grad.y,path.loc.idx)
+#z=c(y.seal[-(dim(y.seal)[1]),1],y.seal[-(dim(y.seal)[1]),2
+#T=length(z)/2
+#
+#browser()
+#meanvec=mv(z,Q,tau,beta)
+#loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+#cat("start ",loglik.current,"\n")
+
+###
+### gibbs loop
+###
+
+#browser()
+
+for(m in 1:n.mcmc){
+
+
+###
+### Birth-Death Process
+###
+
+#browser()
+
+time.bd.left=timestep.bd
+start.comp.time=proc.time()[3]
+tot.time=0
+while(time.bd.left>0 & tot.time<10){
+## Calculate death rate for each existing point
+delta=rep(0,length(tau))
+if(length(tau)>1){
+## death rate for first partition
+beta.d1=beta
+beta.d1[[1]] <- NULL
+meanvec.death=mv(z,Q,tau[-2],beta.d1)
+loglik.death=sum(dnorm(z,meanvec.death,sqrt(s2),log=TRUE))
+loglik.birth=sum(dnorm(beta[[1]],birth.beta.means[1,],birth
+loglik.prior=sum(dnorm(beta[[1]],betamean,sqrt(betavar),log
+delta[1] <- birth.rate/lambda*exp(loglik.death-loglik.curre
+## death rate for all subsequent partitions
+for(k in 2:length(tau)){
+beta.temp=beta
+beta.temp[[k]] <- NULL
+meanvec.death=mv(z,Q,tau[-k],beta.temp)
+loglik.death=sum(dnorm(z,meanvec.death,sqrt(s2),log=TRUE))
+loglik.birth=sum(dnorm(beta[[k]],birth.beta.means[tau[k],],
+loglik.prior=sum(dnorm(beta[[k]],betamean,sqrt(betavar),log
+delta[k]=birth.rate/lambda*exp(loglik.death-loglik.current+
+
+}
+}
+
+death.rate=sum(delta)
+## see if a birth or death happens in the remaining time
+if(death.rate==Inf){
+## Death of offending location
+dead.comp=which.max(delta)
+if(dead.comp==1){
+tau=tau[-2]
+beta[[1]] <- NULL
+}
+else{
+tau=tau[-dead.comp]
+beta[[dead.comp]] <- NULL
+}
+meanvec=mv(z,Q,tau,beta)
+loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+}
+else{
+#browser()
+time.star=rexp(1,1/(birth.rate+death.rate))
+time.bd.left=time.bd.left-time.star
+if(time.bd.left>0){
+if(runif(1)>birth.rate/(birth.rate+death.rate) | length(tau
+## Death
+if(death.rate>0){
+dead.comp=which(rmultinom(1,1,delta/death.rate)==1)
+if(dead.comp==1){
+tau=tau[-2]
+beta[[1]] <- NULL
+}
+else{
+tau=tau[-dead.comp]
+beta[[dead.comp]] <- NULL
+}
+}
+}
+else{
+## Birth
+tau.poss=tau.min:tau.max
+tau.not.poss=1
+for(tau.idx in 1:length(tau)){
+tau.not.poss=c(tau.not.poss,(tau[tau.idx]-tau.buffer):(tau[
+}
+tau.poss=tau.poss[is.element(tau.poss,tau.not.poss)==FALSE]
+if(length(tau.poss)>5){
+#tau.born=sample(tau.poss,1)
+x.idx=rep(NA,length(tau.poss))
+for(t.idx in 1:length(tau.poss)){
+x.idx[t.idx]=which.min(abs(tau.poss[t.idx]-birth.tau.dens$x
+}
+probs=birth.tau.dens$y[x.idx]
+tau.born=tau.poss[which(rmultinom(1,1,probs)==1)]
+new.tau=c(tau,tau.born)
+new.order=order(new.tau)
+tau=new.tau[new.order]
+tau.aug=c(tau,length(z)/2+1)
+center.idx=round(.5*(tau.born+tau.aug[which(new.order==leng
+beta.born=rnorm(p,birth.beta.means[center.idx,],birth.beta.
+
+beta.new=beta
+beta.new[[length(beta)]] <- beta.born
+beta=list()
+for(w in 1:length(beta.new)){
+beta[[w]] <- beta.new[[new.order[w]]]
+}
+beta[[length(beta)+1]] <- length(tau)
+}
+}
+meanvec=mv(z,Q,tau,beta)
+loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+#cat("bd ",loglik.current,"\n")
+}
+}
+tot.time=proc.time()[3]-start.comp.time
+}
+
+
+##
+## sample CRAWL path
+##
+keep.idx=0
+while(keep.idx==0){
+samp.new <- crwPostIS(sim.obj, fullPost=FALSE)
+path.list=cbind(samp.new$alpha.sim.x[,'mu'], samp.new$alpha
+path.loc.idx=get.path.idx(xy,path.list)
+if(min(path.loc.idx)>0 & max(path.loc.idx)<10000){
+keep.idx=1
+}
+}
+y.seal=path.list[-1,]-path.list[-dim(path.list)[1],]
+Q=get.Q(X,X.grad.x,X.grad.y,path.loc.idx)
+z=c(y.seal[-(dim(y.seal)[1]),1],y.seal[-(dim(y.seal)[1]),2]
+meanvec=mv(z,Q,tau,beta)
+loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+#samp.new <- crwPostIS(sim.obj, fullPost=FALSE)
+#path.list=cbind(samp.new$alpha.sim.x[,'mu'], samp.new$alph
+#path.loc.idx=get.path.idx(xy,path.list)
+#y.seal=path.list[-1,]-path.list[-dim(path.list)[1],]
+#Q=get.Q(X,X.grad.x,X.grad.y,path.loc.idx)
+#z=c(y.seal[-(dim(y.seal)[1]),1],y.seal[-(dim(y.seal)[1]),2
+#meanvec=mv(z,Q,tau,beta)
+#loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+
+###
+### sample s2
+###
+
+
+tmpr=(1/r+.5*t(z-meanvec)%*%(z-meanvec))^(-1)
+tmpq=n/2+q
+s2=1/rgamma(1,tmpq,,tmpr)
+
+
+
+###
+### sample beta
+###
+
+#cat(tau,"\n")
+
+#browser()
+tau.aug=c(tau,length(z)/2+1)
+for(k in 1:length(tau)){
+idx.current=c(tau.aug[k]:(tau.aug[k+1]-1),(length(z)/2+tau.
+tmpvar=ginv(t(Q[idx.current,])%*%Q[idx.current,]/s2 + solve
+tmpmean=tmpvar%*%(t(Q[idx.current,])%*%z[idx.current]/s2 +
+##
+## Keep beta the same if the matrix is singular
+## (this problem comes when the time interval
+## gets small)
+##
+if(det(tmpvar)>10^-30){
+beta[[k]]=tmpmean+t(chol(tmpvar))%*%matrix(rnorm(p),p,1)
+}
+}
+
+
+#browser()
+
+meanvec=mv(z,Q,tau,beta)
+loglik.current=sum(dnorm(z,meanvec,sqrt(s2),log=TRUE))
+#cat("beta ",loglik.current,"\n")
+
+###
+### MH step for tau
+###
+
+#browser()
+
+if(length(tau)>1){
+for(k in 2:length(tau)){
+min.min=max(tau.min,tau.aug[k-1]+tau.buffer)
+t.min.dist=tau[k]-min.min
+max.max=min(tau.max,tau.aug[k+1]-tau.buffer)
+t.max.dist=max.max-tau[k]
+if(t.max.dist<=t.min.dist){
+tau.max.poss=min(max.max,tau[k]+tau.tune)
+tau.min.poss=max(min.min,tau[k]-tau.tune)
+if(tau.max.poss>tau.min.poss){
+tau.prop=sample(tau.max.poss:max((tau.max.poss-2*tau.tune),
+}
+else{
+tau.prop=tau[k]
+}
+}
+else{
+tau.max.poss=min(max.max-tau.buffer,tau[k]+tau.tune)
+tau.min.poss=max(min.min+tau.buffer,tau[k]-tau.tune)
+if(tau.max.poss>tau.min.poss){
+tau.prop=sample(tau.min.poss:min((tau.min.poss+2*tau.tune),
+}
+else{
+tau.prop=tau[k]
+}
+}
+tau.star=tau
+tau.star[k] <- tau.prop
+meanvec.star=mv(z,Q,tau.star,beta)
+mh1=sum(dnorm(z,meanvec.star,sqrt(s2),log=TRUE))
+mh2=loglik.current
+if(runif(1)<exp(mh1-mh2)){
+tau=tau.star
+tau.aug=c(tau,T+1)
+meanvec=meanvec.star
+loglik.current=mh1
+#cat("tau ",loglik.current,"\n")
+}
+}
+}
+
+
+
+###
+### save samples
+###
+
+params.save[[m]] <- list(beta=beta,s2=s2,tau=tau)
+numstates.save[m] <- length(tau)
+
+## backup
+#tmp.save=list(params.save=params.save,numstates.save=numst
+n.mcmc=m,path.length=T,sample.path=path.list)
+#save(tmp.save,file="tmp.save.Rdata")
+
+
+if(show.tau==TRUE){
+cat(m," ",tau,"\n")
+}
+}
+#cat("\n")
+
+list(params.save=params.save,numstates.save=numstates.save,
+p=p,sample.path.loc.idx=path.loc.idx,sample.path=path.list,
+path.length=dim(path.list)[1],datetime=datetime)
+
+}

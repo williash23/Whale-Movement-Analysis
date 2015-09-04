@@ -9,9 +9,6 @@
 #  words, the data on line two is the result of what happened between row 1 and 
 #  row 2.  The function does not accept lists for the loc.data.
 
-
-
-
 move.fun <- function(loc.data){
 
         # Create three datasets
