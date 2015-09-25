@@ -7,28 +7,69 @@
 require(vcd)
 require(MASS)
 require(fitdistrplus)
-require(circStats)
+require(CircStats)
+require(qualityTools)
+
+#  Load data
+#   Use data.out and turning angles and step lengths from  
+#   "Movement_parameters_analysis_script"
 
 #  Use package MASS fitdistr() function or package fitdistrplus fitdist() function.
-fit_steps1 <- fitdist(all.step_lengths, "exp") 
-fit_steps2 <- fitdist(all.step_lengths, "gamma") 
-fit_steps3 <- fitdist(all.step_lengths, "weibull") 
-fit_steps4 <- fitdist(all.step_lengths, "lnorm") 
+fit_steps_exp<- fitdist(all.steps, "exp", method = "mle", start = list(rate=0.005)) 
+#fit_steps_gam <- fitdist(all.steps, "gamma", method = "mle") 
+fit_steps_wei <- fitdist(all.steps, "weibull",  method = "mle") 
+fit_steps_lnorm<- fitdist(all.steps, "lnorm", method = "mle") 
 
-summary(fit_steps1)
-summary(fit_steps2)
-summary(fit_steps3)
-summary(fit_steps4)
+summary(fit_steps_exp)
+#summary(fit_steps_gam)
+summary(fit_steps_wei)
+summary(fit_steps_lnorm)
+#  AIC comparison indicates weibull distribution is best fit for observed data.
 
-#   Check turning angles using package CircStats
-#   Get parameter estimates for wrapped Cauchy distribution using est.rho() and circ.mean()
-	rho0 <- est.rho(all.turning_angles)
-	mu0<- circ.mean(all.turning_angles)
+plotdist(all.steps)
+qqcomp(list(fit_steps_exp, fit_steps_wei, fit_steps_lnorm), 
+				legendtext=c("Exponential", "Weibull","LogNormal"),
+				main="Step Lengths", xlab="Theo.",
+				ylab="step lengths (m)", xlim = c(0,3500))
+
+par(mfrow = c(2,2))
+
+#   Examine turning angles using package CircStats
+#  MLE of wrapped cauchy distribution parameters for observed data
+fit_turns1 <- wrpcauchy.ml(all.turns, mu0, rho0)
+	#   Get parameter estimates for wrapped Cauchy distribution using est.rho() and circ.mean()
+	rho0 <- est.rho(all.turns)
+	mu0<- circ.mean(all.turns)
+#  MLE of Von Mises distribution parameters for observed data
+fit_turns2 <- vm.ml(all.turns)	
+	#   Get parameter estimates for Von Mises distribution using est.kappa() 
+	kappa0 <- est.kappa(all.turns)
 	
+fit_turns1
+fit_turns2
 
-#  Assuming step lengths are log-normal distribution (based on lowest AIC value
+circ.disp(all.steps)
+watson(all.steps, alpha=0.1, dist='uniform')
+
+watson(all.steps, alpha=0.1, dist='vm')
+pp.plot (all.steps, ref.line = TRUE)
+
+v0.test(all.steps, mu0=0, degree=FALSE)
+
+par(mfrow = c(2,2))
+plot.edf(rwrpnorm(300, mu0, rho0))
+plot.edf(rwrpcauchy(300, mu0, rho0))
+plot.edf(dvm(300,mu0, kappa0))
+plot.edf(all.turns)
+
+circ.plot(all.steps)
+################################################################################
+	
+#  Fit to distributions!	
+#   Assuming step lengths are log-normal distribution (based on lowest AIC value
 #   when fitting distributions above) and turning angles are a wrapped Cauchy distribution...
 #   First look at histograms and density plots of both.
+library(ggplot2)
 steps_dens <- ggplot(data.out, aes(x=dist)) + 
 									geom_histogram(aes(y=..density..),      # Histogram with density instead of count on y-axis
 									binwidth=100,
@@ -95,7 +136,7 @@ grid.arrange(turns_dens, sim_turns_dens, steps_dens, sim_steps_dens, ncol=2, nro
 library(circular)
 
 # length of walk
-  N<-25
+  N<-10
 
 # make weibull distributed steps
   steps <- rlnorm(N, meanlog = 5.600105, sdlog =  1.171822)
@@ -103,9 +144,10 @@ library(circular)
   hist(steps)
 
 # make clustered turning angles
-  theta <- rwrappedcauchy(N, mu0, rho0)
+  theta <- rwrappedcauchy(N, .11, rho0) # transit
+    theta <- rwrappedcauchy(N, .26, rho0) # station
 # check out their distribution
-  rose.diag(theta,bins=24)
+  rose.diag(theta,bins=50)
 
 # cumulative angle (absolute orientation)
   Phi <- cumsum(theta)
