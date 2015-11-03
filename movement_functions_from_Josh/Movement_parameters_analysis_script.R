@@ -3,26 +3,57 @@
 # Analysis script to run movement parameter generation functions
 ################################################################################
 		#  Load packages
+		library(plyr)
 		library(dplyr)
 		
 		#  Read in whale observation location data
-		#############################################################################
-		########## Choose one of below options for desired subset of data #################
-		
 		#  Raw data
-		# pts1<- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/Whale_Pts_SST.csv")
+		temp <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/Whale_Pts.csv")
+		head(temp)
+		table(temp$whale_behavior)
+
+		temp2 <-filter(temp, temp$whale_behavior=="BL-Blowing" | temp$whale_behavior=="DF-Dive-fluke-up" | 
+											temp$whale_behavior=="DN-Dive-no-fluke" | temp$whale_behavior=="LF-Lunge-feed" | 
+											temp$whale_behavior=="RE-Resting" | temp$whale_behavior=="SA-Surface-active")
+		temp2$whale_behavior <- droplevels(temp2$whale_behavior)
+
+		#  Only use observations where there is more than one observation for comparison of behaviors
+		temp2 <- filter(temp2, ObType=="MultiOb")
+
+		#  Make a new whale_behavior category that is numeric and attach to dataframe
+		#   1: transit type behaviors (blowing/dive with no fluke, dive with fluke up) and 2: stationary type behaviors 
+		#   (lunge feed, resting, surface active)
+		new_beh <- revalue(temp2$whale_behavior, c("BL-Blowing"=1, "DF-Dive-fluke-up"=1, "DN-Dive-no-fluke"=1, 
+													"LF-Lunge-feed"=2, "RE-Resting"=2, "SA-Surface-active"=2))
+		dat <- cbind(temp2,new_beh)
+				
+		#  Create "transit" and "stationary" data sets.
+		transit <- filter(dat, new_beh == 1)
+		station <- filter(dat, new_beh == 2)
+ 
+		#  Create data sets for each behavior.
+		blow <- filter(dat, whale_behavior == "BL-Blowing")
+
+		target <- c("DF-Dive-fluke-up", "DN-Dive-no-fluke")
+		dive <-filter(dat, whale_behavior %in% target)
+
+		target <- c("SA-Surface-active", "LF-Lunge-feed")
+		surf <- filter(dat, whale_behavior %in% target)
+
+		rest <-  filter(dat, whale_behavior == "RE-Resting")
 		
-		# Instead, using groups of observationally assigned broad behavior categories "transit" and "stationary"
-		# source(file.path("C:\Users\sara.williams\Documents\GitHub\Whale-Behavior-Analysis\exploratory_behavior_change.R"))
-		# pts1 <- transit
-		# pts1 <- station
+		#############################################################################
+		########## CHOOSE one of below options for desired subset of data #################
+		
+		pts1 <- dat
+		pts1 <- transit
+		pts1 <- station
 		
 		# Instead, using groups of observationally assigned more specific behavior categories
-		# source(file.path("C:\Users\sara.williams\Documents\GitHub\Whale-Behavior-Analysis\exploratory_behavior_change.R"))
-		pts1 <- blow
-		# pts1 <- dive
-		# pts1 <- surf
-		# pts1 <- rest
+		# pts1 <- blow
+		pts1 <- dive
+		pts1 <- surf
+		pts1 <- rest
 		
 		# #   Instead, using only points that are, before, at ,or after CPA
 		# source(file.path("C:\Users\sara.williams\Documents\GitHub\Whale-Behavior-Analysis\exploratory_behavior_change.R"))
@@ -49,35 +80,87 @@
 					   dplyr::rename( x = whale_easting , y = whale_northing) 
 									
 		loc.data <- as.data.frame(pts4)
-				
+		loc.data.transit <- as.data.frame(pts4)
+		loc.data.station <- as.data.frame(pts4)
+		loc.data.dive <- as.data.frame(pts4)
+		loc.data.surf <- as.data.frame(pts4)
+		
 		#  Location data processing: go through data set by "SwB_Wpt_ID", select on whales that have more than 
 		#   2 sightings (need at least 3 sightings for step length and turning angle).		
 		#  Run move.fun!!!
 		data.out <- loc.data %>%
-									group_by(SwB_Wpt_ID)%>%
-									filter(n()>2) %>%
-									do(move.fun(data.frame(x = .$x, y = .$y))) %>%
-									as.data.frame(.)
+								group_by(SwB_Wpt_ID)%>%
+								filter(n()>2) %>%
+								do(move.fun(data.frame(x = .$x, y = .$y))) %>%
+								as.data.frame(.)
+									
+		data.out.transit <- loc.data.transit %>%
+												group_by(SwB_Wpt_ID)%>%
+												filter(n()>2) %>%
+												do(move.fun(data.frame(x = .$x, y = .$y))) %>%
+												as.data.frame(.)
 
+		data.out.station <- loc.data.station %>%
+												group_by(SwB_Wpt_ID)%>%
+												filter(n()>2) %>%
+												do(move.fun(data.frame(x = .$x, y = .$y))) %>%
+												as.data.frame(.)
+												
+		data.out.dive <- loc.data.dive %>%
+												group_by(SwB_Wpt_ID)%>%
+												filter(n()>2) %>%
+												do(move.fun(data.frame(x = .$x, y = .$y))) %>%
+												as.data.frame(.)
+												
+		data.out.surf <- loc.data.surf %>%
+												group_by(SwB_Wpt_ID)%>%
+												filter(n()>2) %>%
+												do(move.fun(data.frame(x = .$x, y = .$y))) %>%
+												as.data.frame(.)
+												
 		# #  Compare histograms of step lengths and turning angles of all sightings vs sightings just within 2000m
 		library(ggplot2)
 		# #   Step lengths
-		steps_hist <- ggplot(data.out, aes(x=dist)) + 
-							geom_histogram(aes(y=..density..),
-							color="black", fill="grey", 
-							binwidth=50) +
-							geom_density(alpha=.2, fill="#FF6666") +
-							theme_bw()
-		steps_hist					
+		steps_hist_transit <- ggplot(data.out.transit, aes(x=dist)) + 
+													geom_histogram(aes(y=..density..),
+													color="black", fill="grey", 
+													binwidth=50) +
+													geom_density(alpha=.2, fill="#FF6666") +
+													xlim(0, 4000) +
+													ylim(0,0.003) +
+													theme_bw()
+		steps_hist_transit	
+
+		steps_hist_station <- ggplot(data.out.station, aes(x=dist)) + 
+													geom_histogram(aes(y=..density..),
+													color="black", fill="grey", 
+													binwidth=50) +
+													geom_density(alpha=.2, fill="#FF6666") +
+													xlim(0, 4000) +
+													ylim(0,0.003) +
+													theme_bw()
+		steps_hist_station
 
 		# #  Turn angles
-		turns_hist <- ggplot(data.out, aes(x=turn.angle)) + 
-						geom_histogram(aes(y=..density..),
-							color="black", fill="grey", 
-							binwidth=.1) +
-							geom_density(alpha=.2, fill="#FF6666") +
-							theme_bw()
-		turns_hist				
+		turns_hist_transit <- ggplot(data.out.transit, aes(x=turn.angle)) + 
+									geom_histogram(aes(y=..density..),
+									color="black", fill="grey", 
+									binwidth=.1) +
+									geom_density(alpha=.2, fill="#FF6666") +
+									xlim(-3.5, 3.5) +
+									ylim(0,1.0) +
+									theme_bw()
+		turns_hist_transit	
+
+		turns_hist_station <- ggplot(data.out.station, aes(x=turn.angle)) + 
+									geom_histogram(aes(y=..density..),
+									color="black", fill="grey", 
+									binwidth=.1) +
+									geom_density(alpha=.2, fill="#FF6666") +
+									xlim(-3.5, 3.5) +
+									ylim(0,1.0) +
+									theme_bw()
+		turns_hist_station			
 
 		#  Create vectors of just turns and step lengths and remove NA's
 		#   Step lengths
@@ -85,10 +168,53 @@
 		all.steps <- na.omit(all.steps)
 	    all.steps <- as.numeric(all.steps)
 		
+		all.steps.transit <- as.vector(data.out.transit$dist)
+		all.steps.transit <- na.omit(all.steps.transit)
+	    all.steps.transit <- as.numeric(all.steps.transit)
+		
+		all.steps.station <- as.vector(data.out.station$dist)
+		all.steps.station <- na.omit(all.steps.station)
+	    all.steps.station <- as.numeric(all.steps.station)
+		
+		all.steps.dive <- as.vector(data.out.dive$dist)
+		all.steps.dive <- na.omit(all.steps.dive)
+	    all.steps.dive <- as.numeric(all.steps.dive)
+		
+		all.steps.surf <- as.vector(data.out.surf$dist)
+		all.steps.surf <- na.omit(all.steps.surf)
+	    all.steps.surf <- as.numeric(all.steps.surf)
+		
 		#   Turn angles
 		all.turns <- as.vector(data.out$turn.angle)
 		all.turns <- na.omit(all.turns)
 		all.turns <- as.numeric(all.turns)
+		
+		all.turns.transit <- as.vector(data.out.transit$turn.angle)
+		all.turns.transit <- na.omit(all.turns.transit)
+		all.turns.transit <- as.numeric(all.turns.transit)
+		
+		all.turns.station <- as.vector(data.out.station$turn.angle)
+		all.turns.station <- na.omit(all.turns.station)
+		all.turns.station <- as.numeric(all.turns.station)
+		
+		all.turns.dive <- as.vector(data.out.dive$turn.angle)
+		all.turns.dive <- na.omit(all.turns.dive)
+		all.turns.dive <- as.numeric(all.turns.dive)
+		
+		all.turns.surf <- as.vector(data.out.surf$turn.angle)
+		all.turns.surf <- na.omit(all.turns.surf)
+		all.turns.surf <- as.numeric(all.turns.surf)
+		
+		length(all.steps.transit)
+		range(all.steps.transit)
+		length(all.turns.transit)
+		range(all.turns.transit)
+		
+		length(all.steps.station)
+		range(all.steps.station)
+		length(all.turns.station)
+		range(all.turns.station)
+#############################################################################	
 #############################################################################	
 
 ####  Looking for erroneous points - crazy step lenghts. Based on detection probability, 
