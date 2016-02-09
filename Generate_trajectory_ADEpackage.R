@@ -16,32 +16,34 @@ library(ggplot2)
 #  Read in whale location data (all whale observations with duplicated sightings at behvaior change).
 temp <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/Whales_0615_w_dup_last_row_rem.csv")
 
-#  Only use observations where there is more than one observation for comparison of behaviors
-dat <- temp %>%
-			 group_by(same_whale_ID)%>%
-			 filter(ob_type == "MultiOb") %>% 
-			 arrange(same_whale_ID, ob_order_time) %>%
-			 as.data.frame(.)
+#  Arrange locations in order of the same whale (so in a group of multiple observations)
+#   and by observation order. 
+dat_dup <- temp %>%
+					   arrange(same_whale_ID, ob_order_time) %>%
+					   as.data.frame(.)
 			 
-#  Create "transit" and "stationary" data sets.
+#  Create behavior type data sets.
 target <- c(1, 2, 3)
-transit <- filter(dat, new_beh %in% target)
+transit <- filter(dat_dup, new_beh %in% target)
 
 target <- c(4, 5, 6)
-station <- filter(dat, new_beh %in% target)
- 
-#  Create data sets for each behavior.
-blow <- filter(dat, new_beh == 1)
+station <- filter(dat_dup, new_beh %in% target)
+
+blow <- filter(dat_dup, new_beh == 1)
 
 target <- c(2)
-dive <-filter(dat, new_beh %in% target)
+dive <-filter(dat_dup, new_beh %in% target)
 
 target <- c(4, 5, 6)
-surf <- filter(dat, new_beh %in% target)
+surf <- filter(dat_dup, new_beh %in% target)
 
+#  Create dataset of all points with no duplicated points. Duplication is unncessary when not dividing by behavior.
+#  Use only whales that were observed at least 2 times.
+dat <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/Whales_0615_locations_clean.csv")
+dat <- dat %>%
+			 arrange(same_whale_ID, ob_order_time) %>%
+			 as.data.frame(.)
 ################################################################################
-#  Arrange locations in order of the same whale (so in a group of multiple observations)
-#   and then arrange also by observation order
 
 #  All obs
 locs2_a <- arrange(dat, same_whale_ID, ob_order_time)
@@ -127,51 +129,51 @@ traj_dat_station <- ld(whale_traj_station)
 traj_dat_dive <- ld(whale_traj_dive)
 traj_dat_surf <- ld(whale_traj_surf)
 #   Connect traj_dat to dataframe with same_whale_ID
-traj_dat_full <- cbind(traj_dat, locs_tmp2_a)
+traj_dat_full <- cbind(traj_dat, dat)
 ################################################################################
 
-#  Create vectors for data remove NA's
+#  Create vectors for data to remove NA's and giant steps (greater than 10000m).
 #   Step lengths
-steps <- as.vector(traj_dat$dist)
+steps <- as.vector(traj_dat$dist[traj_dat$dist <6000])
 steps <- na.omit(steps)
-steps <- as.numeric(steps)
+steps <- sort(as.numeric(steps))
 		
-steps.transit <- as.vector(traj_dat_transit$dist)
+steps.transit <- as.vector(traj_dat_transit$dist[traj_dat_transit$dist <10000])
 steps.transit <- na.omit(steps.transit)
-steps.transit <- as.numeric(steps.transit)
+steps.transit <- sort(as.numeric(steps.transit))
 		
-steps.station <- as.vector(traj_dat_station$dist)
+steps.station <- as.vector(traj_dat_station$dist[traj_dat_station$dist <10000])
 steps.station <- na.omit(steps.station)
-steps.station <- as.numeric(steps.station)
+steps.station <- sort(as.numeric(steps.station))
 		
-steps.dive <- as.vector(traj_dat_dive$dist)
+steps.dive <- as.vector(traj_dat_dive$dist[traj_dat_dive$dist <10000])
 steps.dive <- na.omit(steps.dive)
-steps.dive <- as.numeric(steps.dive)
+steps.dive <- sort(as.numeric(steps.dive))
 		
-steps.surf <- as.vector(traj_dat_surf$dist)
+steps.surf <- as.vector(traj_dat_surf$dist[traj_dat_surf$dist <10000])
 steps.surf <- na.omit(steps.surf)
-steps.surf <- as.numeric(steps.surf)
+steps.surf <- sort(as.numeric(steps.surf))
 		
 #   Turn angles
 turns <- as.vector(traj_dat$rel.angle)
 turns <- na.omit(turns)
-turns <- as.numeric(turns)
+turns <-  sort(as.numeric(turns))
 		
 turns.transit <- as.vector(traj_dat_transit$rel.angle)
 turns.transit <- na.omit(turns.transit)
-turns.transit <- as.numeric(turns.transit)
+turns.transit <-  sort(as.numeric(turns.transit))
 		
 turns.station <- as.vector(traj_dat_station$rel.angle)
 turns.station <- na.omit(turns.station)
-turns.station <- as.numeric(turns.station)
+turns.station <-  sort(as.numeric(turns.station))
 		
 turns.dive <- as.vector(traj_dat_dive$rel.angle)
 turns.dive <- na.omit(turns.dive)
-turns.dive <- as.numeric(turns.dive)
+turns.dive <-  sort(as.numeric(turns.dive))
 		
 turns.surf <- as.vector(traj_dat_surf$rel.angle)
 turns.surf <- na.omit(turns.surf)
-turns.surf <- as.numeric(turns.surf)
+turns.surf <-  sort(as.numeric(turns.surf))
 
 # # # turns.station.deg <- deg(turns.station)
 # # # turns.station.deg <- turns.station.deg[turns.station.deg < 0]  + 360
@@ -181,7 +183,6 @@ turns.surf <- as.numeric(turns.surf)
 # # # turns.dive.deg <- turns.dive.deg[turns.dive.deg < 0]  + 360
 # # # turns.surf.deg <-deg(turns.surf)
 # # # turns.surf.deg <- turns.surf.deg[turns.surf.deg < 0]  + 360
-
 
 #  Displacement
 dis_transit <- cbind(transit, traj_dat_transit)
@@ -268,27 +269,27 @@ nlocs.surf <- as.numeric(nlocs.surf)
 
 #  Plots
 #  Step lengths
-steps_hist_transit <- ggplot(traj_dat_transit, aes(x=dist)) + 
-										   geom_histogram(aes(y=..density..),
-										   color="black", fill="grey", 
-										   binwidth=100) +
-										   geom_density(alpha=.2, fill="#FF6666") +
-										   xlim(0, 4000) +
-										   ylim(0,0.003) +
-										   xlab("Step length (m)") +
-										   theme_bw()
-steps_hist_transit	
+# steps_hist_transit <- ggplot(traj_dat_transit, aes(x=dist)) + 
+										   # geom_histogram(aes(y=..density..),
+										   # color="black", fill="grey", 
+										   # binwidth=100) +
+										   # geom_density(alpha=.2, fill="#FF6666") +
+										   # xlim(0, 4000) +
+										   # ylim(0,0.003) +
+										   # xlab("Step length (m)") +
+										   # theme_bw()
+# steps_hist_transit	
 
-steps_hist_station <- ggplot(traj_dat_station, aes(x=dist)) + 
-											geom_histogram(aes(y=..density..),
-											color="black", fill="grey", 
-											binwidth=100) +
-											geom_density(alpha=.2, fill="#FF6666") +
-											xlim(0, 4000) +
-											ylim(0,0.003) +
-											xlab("Step length (m)") +
-											theme_bw()
-steps_hist_station
+# steps_hist_station <- ggplot(traj_dat_station, aes(x=dist)) + 
+											# geom_histogram(aes(y=..density..),
+											# color="black", fill="grey", 
+											# binwidth=100) +
+											# geom_density(alpha=.2, fill="#FF6666") +
+											# xlim(0, 4000) +
+											# ylim(0,0.003) +
+											# xlab("Step length (m)") +
+											# theme_bw()
+# steps_hist_station
 
 steps_hist_dive <- ggplot(traj_dat_dive, aes(x=dist)) + 
 									  geom_histogram(aes(y=..density..),
@@ -300,7 +301,7 @@ steps_hist_dive <- ggplot(traj_dat_dive, aes(x=dist)) +
 									  xlab("Step length (m)") +
 									  theme_bw()
 steps_hist_dive	
-
+ 
 steps_hist_surf <- ggplot(traj_dat_surf, aes(x=dist)) + 
 									 geom_histogram(aes(y=..density..),
 									 color="black", fill="grey", 
@@ -312,22 +313,22 @@ steps_hist_surf <- ggplot(traj_dat_surf, aes(x=dist)) +
 									 theme_bw()
 steps_hist_surf
 	
-#   Create dataframe of observed dive steps and observed stationary steps together.
-#   Have to have objects of same length, so add on NAs to shorter vector.
-max.len <- max(length(steps.dive), length(steps.station))
-steps.station <- c(steps.station, rep(NA, max.len - length(steps.station)))
-obs_steps <- as.data.frame(cbind(steps.dive, steps.station))
-names(obs_steps)[1] <- "Dive"
-names(obs_steps)[2] <- "Station"
+# #   Create dataframe of observed dive steps and observed stationary steps together.
+# #   Have to have objects of same length, so add on NAs to shorter vector.
+# max.len <- max(length(steps.dive), length(steps.station))
+# steps.station <- c(steps.station, rep(NA, max.len - length(steps.station)))
+# obs_steps <- as.data.frame(cbind(steps.dive, steps.station))
+# names(obs_steps)[1] <- "Dive"
+# names(obs_steps)[2] <- "Station"
 
-#   Look at density plots of both on same figure
-df_steps_obs <- melt(obs_steps)
-compare_steps_obs <- ggplot(df_steps_obs) + 
-											   geom_density(aes(x = value, colour = variable)) +
-											   xlim(0, 4000) +
-											   xlab("Step length (m)") +
-											   theme_bw()
-compare_steps_obs
+# #   Look at density plots of both on same figure
+# df_steps_obs <- melt(obs_steps)
+# compare_steps_obs <- ggplot(df_steps_obs) + 
+											   # geom_density(aes(x = value, colour = variable, fill = variable), alpha=.3) +
+											   # xlim(0, 6000) +
+											   # xlab("Step length (m)") +
+											   # theme_bw()
+# compare_steps_obs
 
 #   Create dataframe of observed dive steps and observed surface steps
 #   Have to have objects of same length, so add on NAs to shorter vector.
@@ -340,34 +341,48 @@ names(obs_steps_dive_surf )[2] <- "Surf"
 #   Look at density plots of both on same figure
 df_steps_obs_dive_surf <- melt(obs_steps_dive_surf)
 compare_steps_obs_dive_surf <- ggplot(df_steps_obs_dive_surf ) + 
-																	 geom_density(aes(x = value, colour = variable)) +
+																	 geom_density(aes(x = value, colour = variable, fill = variable), alpha=.25) +
 																	 xlim(0, 4000) +
 																	 xlab("Step length (m)") +
 																	 theme_bw()
 compare_steps_obs_dive_surf 
 
-#  Turn angles
-turns_hist_transit <- ggplot(traj_dat_transit, aes(x=rel.angle)) + 
-										   geom_histogram(aes(y=..density..),
-										   color="black", fill="grey", 
-										   binwidth=.1) +
-										   geom_density(alpha=.2, fill="#FF6666") +
-										   xlim(-3.5, 3.5) +
-										   ylim(0,1.0) +
-										   xlab("Turn angle (radian)") +
-										   theme_bw()
-turns_hist_transit	
+#  Compute shared area under curves???
+#   Generate kernel densities
+ddive <- density(obs_steps_dive_surf$Dive, from=0, to=4000)
+dsurf <- density(obs_steps_dive_surf$Surf, from=0, to=4000, na.rm = T)
+d <- data.frame(x=ddive$x, a=ddive$y, b=dsurf$y)
+#   Calculate intersection densities
+d$w <- pmin(d$a, d$b)
+#   Integrate areas under curves
+library(sfsmisc)
+total <- integrate.xy(d$x, d$a) + integrate.xy(d$x, d$b)
+intersection <- integrate.xy(d$x, d$w)
+#   Compute overlap coefficient
+overlap <- 2 * intersection / total
 
-turns_hist_station <- ggplot(traj_dat_station, aes(x=rel.angle)) + 
-										   geom_histogram(aes(y=..density..),
-										   color="black", fill="grey", 
-										   binwidth=.1) +
-										   geom_density(alpha=.2, fill="#FF6666") +
-										   xlim(-3.5, 3.5) +
-										   ylim(0,1.0) +
-										   xlab("Turn angle (radian)") +
-										   theme_bw()
-turns_hist_station	
+#  Turn angles
+# turns_hist_transit <- ggplot(traj_dat_transit, aes(x=rel.angle)) + 
+										   # geom_histogram(aes(y=..density..),
+										   # color="black", fill="grey", 
+										   # binwidth=.1) +
+										   # geom_density(alpha=.2, fill="#FF6666") +
+										   # xlim(-3.5, 3.5) +
+										   # ylim(0,1.0) +
+										   # xlab("Turn angle (radian)") +
+										   # theme_bw()
+# turns_hist_transit	
+
+# turns_hist_station <- ggplot(traj_dat_station, aes(x=rel.angle)) + 
+										   # geom_histogram(aes(y=..density..),
+										   # color="black", fill="grey", 
+										   # binwidth=.1) +
+										   # geom_density(alpha=.2, fill="#FF6666") +
+										   # xlim(-3.5, 3.5) +
+										   # ylim(0,1.0) +
+										   # xlab("Turn angle (radian)") +
+										   # theme_bw()
+# turns_hist_station	
 
 turns_hist_dive <- ggplot(traj_dat_dive, aes(x=rel.angle)) + 
 									  geom_histogram(aes(y=..density..),
@@ -391,30 +406,30 @@ turns_hist_surf <- ggplot(traj_dat_surf, aes(x=rel.angle)) +
 									 theme_bw()
 turns_hist_surf	
 
-#   Create dataframe of observed dive turns and observed stationary turns
-#   Have to have objects of same length, so add on NAs to shorter vector.
-max.len <- max(length(turns.dive), length(turns.station))
-turns.station<- c(turns.station, rep(NA, max.len - length(turns.station)))
-obs_turns <- as.data.frame(cbind(turns.dive, turns.station))
-names(obs_turns)[1] <- "Dive"
-names(obs_turns)[2] <- "Station"
+# #   Create dataframe of observed dive turns and observed stationary turns
+# #   Have to have objects of same length, so add on NAs to shorter vector.
+# max.len <- max(length(turns.dive), length(turns.station))
+# turns.station<- c(turns.station, rep(NA, max.len - length(turns.station)))
+# obs_turns <- as.data.frame(cbind(turns.dive, turns.station))
+# names(obs_turns)[1] <- "Dive"
+# names(obs_turns)[2] <- "Station"
 	
-#   Look at density plots of both on same figure
-df_turns_obs <- melt(obs_turns)
-compare_turns_obs <- ggplot(df_turns_obs) + 
-											   geom_density(aes(x = value, colour = variable)) +
-										       xlim(-4, 4) +
-											   xlab("Turn angle (radian)") +
-											   theme_bw()
-compare_turns_obs	
+# #   Look at density plots of both on same figure
+# df_turns_obs <- melt(obs_turns)
+# compare_turns_obs <- ggplot(df_turns_obs) + 
+											   # geom_density(aes(x = value, colour = variable, fill = variable), alpha = .25) +
+										       # xlim(-4, 4) +
+											   # xlab("Turn angle (radian)") +
+											   # theme_bw()
+# compare_turns_obs	
 
-#   Create dataframe of observed transit turns and observed stationary turns IN DEGRESS
-#   Have to have objects of same length, so add on NAs to shorter vector.
-max.len <- max(length(turns.dive.deg), length(turns.station.deg))
-turns.station.deg<- c(turns.station.deg, rep(NA, max.len - length(turns.station.deg)))
-obs_turns_deg <- as.data.frame(cbind(turns.dive.deg, turns.station.deg))
-names(obs_turns_deg)[1] <- "Dive"
-names(obs_turns_deg)[2] <- "Station"
+# # # #   Create dataframe of observed transit turns and observed stationary turns IN DEGRESS
+# # # #   Have to have objects of same length, so add on NAs to shorter vector.
+# # # max.len <- max(length(turns.dive.deg), length(turns.station.deg))
+# # # turns.station.deg<- c(turns.station.deg, rep(NA, max.len - length(turns.station.deg)))
+# # # obs_turns_deg <- as.data.frame(cbind(turns.dive.deg, turns.station.deg))
+# # # names(obs_turns_deg)[1] <- "Dive"
+# # # names(obs_turns_deg)[2] <- "Station"
 	
 # # # #   Look at density plots of both on same figure
 # # # df_turns_obs_deg <- melt(obs_turns_deg)
@@ -436,11 +451,26 @@ names(obs_turns_dive_surf)[2] <- "Surf"
 #   Look at density plots of both on same figure
 df_turns_obs_dive_surf <- melt(obs_turns_dive_surf)
 compare_turns_obs_dive_surf <- ggplot(df_turns_obs_dive_surf) + 
-																	geom_density(aes(x = value, colour = variable)) +
-																	xlim(-3.2, 3.2) +
+																	geom_density(aes(x = value, colour = variable, fill = variable), alpha = .25) +
+																	xlim(-4, 4) +
 																	xlab("Turn angle (radian)") +
 																	theme_bw()
 compare_turns_obs_dive_surf
+
+#  Compute shared area under curves???
+#   Generate kernel densities
+ddive_s <- density(obs_turns_dive_surf$Dive, from=-4, to=4)
+dsurf_s <- density(obs_turns_dive_surf$Surf, from=-4, to=4, na.rm = T)
+d_s <- data.frame(x=ddive_s$x, a=ddive_s$y, b=dsurf_s$y)
+#   Calculate intersection densities
+d_s$w <- pmin(d_s$a, d_s$b)
+#   Integrate areas under curves
+library(sfsmisc)
+total_s <- integrate.xy(d_s$x, d_s$a) + integrate.xy(d_s$x, d_s$b)
+intersection_s <- integrate.xy(d_s$x, d_s$w)
+#   Compute overlap coefficient
+overlap_s <- 2 * intersection_s / total_s
+
 
 #  Displacement
 #   Create dataframe of observed transit total displacement and observed stationary displacement
@@ -511,6 +541,28 @@ compare_nlocs_obs_dive_surf  <- ggplot(df_nlocs_obs_dive_surf ) +
 																	  xlab("Number of relocations") +
 																	  theme_bw()
 compare_nlocs_obs_dive_surf 				
+##################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

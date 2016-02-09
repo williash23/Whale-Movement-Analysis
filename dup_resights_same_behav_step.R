@@ -9,8 +9,9 @@ library(plyr)
 library(dplyr)
 
 #  Read in whale location data (all whale observations)
-temp <- dat
-#read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/whale_points_id_errors_rem.csv")
+temp <- read.csv("C:/Users/sara.williams/Documents/GitHub/General-Data-Cleaning/Whales_0615_general_clean.csv")
+
+#  Subset to only observations where behavior is recorded.
 temp2 <-filter(temp, temp$whale_behavior=="BL-Blowing" | temp$whale_behavior=="DF-Dive-fluke-up" | 
 							 temp$whale_behavior=="DN-Dive-no-fluke" | temp$whale_behavior=="LF-Lunge-feed" | 
 							 temp$whale_behavior=="RE-Resting" | temp$whale_behavior=="SA-Surface-active")
@@ -21,30 +22,20 @@ val_beh <- revalue(temp2$whale_behavior, c("BL-Blowing"=1, "DF-Dive-fluke-up"=2,
 									   "LF-Lunge-feed"=4, "RE-Resting"=5, "SA-Surface-active"=6))
 dat2 <- cbind(temp2, val_beh)
 
-#  From preliminary trajectory from relocations using ADEhabitatLT package, a few step lengths are
-#   unreasonable. These are:
-# # # tmp <- filter(traj_dat, dist > 10000)
-# # # x       				y 					date        dx        				dy     					dist 				 dt       R2n 						 id 			SwB_Wpt_ID
-# # # 390794.6 		6531345   	26  			17283.07 			-6212.822 		18365.83 		 1    	581461.2 				10    		2008-05-28-N-032
-# # # 412665.7 		6523511 		1382 		-29119.64  		8152.515 			30239.33  	 1         0.0  						502  		2010-05-21-N-039
-# # # 383546.1 		6531663 		1383  	28882.04 			-8074.089 		29989.38  	 1 		914417196.6		502   		2010-05-21-N-039
-
 #  Remove erroneous (unreasonable) locations.
 dat3 <- dat2 %>%
 			 filter(whale_dist_shore_m > 0) %>%
 			 filter(whale_depth_m < 0) %>%
-			 #filter(same_whale_ID != "2008-05-28-N-032") %>% 
-			 #filter(same_whale_ID != "2010-05-21-N-039") %>%
 			 arrange(same_whale_ID, ob_order_time)
 
 dat_beh <- dat3 %>%
 					   dplyr::group_by(same_whale_ID) %>%
 					   mutate(num_beh = n_distinct(val_beh)) %>%
-					   mutate(num_obs = max(ob_order_time)) %>%
+					   mutate(num_obs = n()) %>%
 					   mutate(duplicate = "0") %>%
 					   as.data.frame(.)
 
-# # # write.csv(dat_beh, "all_locs_not dup.csv")					   
+# # # write.csv(dat_beh, "Whales_0615_locations_clean.csv")					   
 ################################################################################
 
 #  Adjust data set: break each group of same whale sightings into sub-groups based on changes
@@ -74,7 +65,7 @@ dat_beh <- dat3 %>%
 beh_mult <- dat_beh %>%
 						  dplyr::filter(num_beh > 1) %>%
 						  group_by(same_whale_ID) %>%
-						   dplyr::filter(row_number() > 1, val_beh != lag(val_beh)) %>%
+						  dplyr::filter(row_number() > 1, val_beh != lag(val_beh)) %>%
 						  mutate(duplicate = "1") %>%
 						  ungroup(.) %>%
 						  as.data.frame(.)
@@ -106,4 +97,7 @@ dup_rem_last <- dup_dat %>%
 								  as.data.frame(.)
 
 # # # write.csv(dup_rem_last, "Whales_0615_w_dup_last_row_rem.csv")							   
+################################################################################
+
+#  Duplicate every sighting except the first and last?
 
