@@ -6,7 +6,6 @@
 
 #  Load packages
 library(R2jags)
-library(rjags)
 library(dplyr)
 library(adehabitatLT)		
 library(mcmcplots)
@@ -64,13 +63,12 @@ shore_raw <- as.numeric(obs$shore_dist)
 ship_raw <- as.numeric(obs$ship_dist)
 shore <-as.numeric(scale(shore_raw))
 ship <- as.numeric(scale(ship_raw))
-
 ################################################################################
 
 #   MCMC settings
 nc <- 3					
-ni <- 1000				
-nb <- 400				
+ni <- 30000				
+nb <- 10000				
 nt <- 2			
 ################################################################################
 
@@ -93,6 +91,7 @@ out_single <- jags(data = jags.data,
 									 inits = inits, 
 									 parameters.to.save = params, 
 									 model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/single.txt",
+									 working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
 									 n.thin = nt, 
 									 n.chains = nc, 
 									 n.burnin = nb, 
@@ -115,23 +114,26 @@ mcmcplot(out_single)
 #  Run "double" model
 
 #   Bundle data
-jags.dat <- list("npts", "l", "theta")
+jags.dat <- list("npts", "l", "theta", "ID")
 
 #   Inits function
-inits <- function(){list(v=runif(2, 0.01, 10), 
-											 lambda=c(NA,runif(1, 0.01, 10)),
-											 eps=runif(1, 0.01, 10),											 
+inits <- function(){list(v=runif(2, 0.01, 5), 
+											 lambda=c(NA,runif(1, 0.01, 5)),
+											 eps=runif(1, 0.01, 5),											 
 											 rho=runif(2, 0.01, 1), 
-											 mu=runif(2, -pi, pi))}
+											 mu=runif(2, -pi, pi),
+											 beta0=runif(1, -5, 5))
+											 }
 
 #   Parameters to estimate
-params <- c("v","lambda", "mu", "rho", "scale", "eps")
+params <- c("v","lambda", "mu", "rho", "scale", "eps", "mean.q", "beta0")
 
 #   Unleash Gibbs sampler
 out_double <- jags(data = jags.dat, 
 									    inits = inits, 
 										parameters.to.save = params, 
 										model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double.txt",
+										working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
 										n.thin = nt, 
 										n.chains = nc, 
 										n.burnin = nb, 
@@ -160,7 +162,7 @@ mcmcplot(out_double)
 #  Run "double switch" model
 
 #   Bundle data
-jags.dat <- list("npts", "l", "theta")
+jags.dat <- list("npts", "l", "theta", "ID")
 
 #   Inits function
 inits <- function(){list(v=runif(2, 0.01,  5), 
@@ -168,13 +170,13 @@ inits <- function(){list(v=runif(2, 0.01,  5),
 											 eps=runif(1, 0.01, 5),
 											 rho = runif(2, 0.01, 1), 
 											 mu = runif(2, -pi, pi),
-											 qu = runif(2, 0.01, 1),
 											 phi = c(runif(1, 0.01, 1), NA),
+											 beta0=runif(2, -5, 5),
 											 idx = c(NA, rep(1, length.out = (npts-1))))
 											 }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "qu", "scale", "mean.idx")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "mean.q")
 
 #   Unleash Gibbs sampler
 out_double_sw <- jags(data = jags.dat, 
@@ -213,10 +215,8 @@ mcmcplot(out_double_sw)
 
 #  Run "double  covariate" model
 
-nstate <- 2
-
 #   Bundle data
-jags.dat <- list("npts", "l", "theta", "shore", "ID", "nstate")
+jags.dat <- list("npts", "l", "theta", "shore", "ID")
 
 #   Inits function
 inits <- function(){list(v=runif(2, 0.01, 5), 
@@ -229,7 +229,7 @@ inits <- function(){list(v=runif(2, 0.01, 5),
 											 }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "mean.q")
 
 #   Unleash Gibbs sampler
 out_doub_cov <- jags(data = jags.dat, 
@@ -279,15 +279,14 @@ inits <- function(){list(v=runif(2, 0.01,  5),
 											 eps=runif(1, 0.01, 5),
 											 rho = runif(2, 0.01, 1), 
 											 mu = runif(2, -pi, pi),
-											 #qu = runif(2, 0.01, 1),
 											 phi = c(runif(1, 0.01, 1), NA),
 											 idx = c(NA, rep(1, length.out = (npts-1))),
-											 beta0=runif(1, -5, 5),
-											 beta1=runif(1, -5, 5))
+											 beta0=runif(2, -5, 5),
+											 beta1=runif(2, -5, 5))
 											 }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "qu", "scale", "beta0", "beta1")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "ship_eff", "mean.q")
 
 #   Unleash Gibbs sampler
 out_double_sw_cov <- jags(data = jags.dat, 

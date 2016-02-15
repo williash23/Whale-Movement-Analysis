@@ -14,60 +14,58 @@ model{
 		
 		#  Scale parameter for step length distribution
 		lambda[2] ~ dgamma(0.01, 0.01) # Movement state 2
-		eps ~ dnorm(0, 0.001)I(0.01,) # Non-negative variate to add to lambda[2]
+		eps ~ dnorm(0.01, 0.01)I(0.01,) # Non-negative variate to add to lambda[2]
 		lambda[1]  <- lambda[2] + eps # Movement state 1
 		
 		#  Mean cosine of turns
-		rho[1] ~ dunif(0, 1) # Movement state 1
-		rho[2] ~ dunif(0, 1) # Movement state 2
+		rho[1] ~ dunif(0.01, 1) # Movement state 1
+		rho[2] ~ dunif(0.01, 1) # Movement state 2
 		
 		#  Mean direction of turns
-		mu[1] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 1
-		mu[2] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 2
+		mu[1] ~ dunif(-Pi, Pi) # Movement state 1
+		mu[2] ~ dunif(-Pi, Pi) # Movement state 2
 		
+		#  Intercept for  state
 		beta0 ~ dnorm(0, 0.001)T(-5, 5)
 		beta1 ~ dnorm(0, 0.001)T(-5, 5)
-		#beta2 ~ dnorm(0, 0.001)T(-5, 5)
 		
 		#  Random change to the intercept for each individual
 		for (i in 1:length(ID)){
-				alpha[i] ~ dnorm(0, 0.001)T(-5, 5)
-				}
-	
+			alpha[i] ~ dnorm(0, 0.001)T(-5, 5)
+		}
+
 	#  Define Pi
 	Pi <- 3.14159265359
 	
 	# Likelihood
-		
+	
+		#  Generate state index
+			#  Loop over all observations
+			for (t in 1:npts){
+					logit(q[1, t]) <- beta0 + beta1*shore[t] + alpha[ID[t]]
+					q[2, t] <- 1-q[1, t]
+			}
+					
 		#  Loop over all observations
 			for (t in 1:npts){
-					#  Current movement type is related to current distance from shore (others?) and random
-					#   effect for individual
-					# beta2*ship[t]
-					logit(nu_h[t]) <- beta0 + beta1*shore[t] + alpha[ID[t]]
-					nu[t,1] <- 1/(1 + (exp(-nu_h[t]))) # probability of being in movement type 1
-					nu[t,2] <- 1 - (1/(1 + (exp(-nu_h[t]))))
-					idx[t] ~ dcat(nu[t,])  # Latent state and parameter index
-	
-				}
-			
-				for (t in 1:npts){
-				
-					#  Steps
-					l[t] ~ dweib(v[idx[t]], lambda[idx[t]])	
+				idx[t] ~ dbern(q[1, t]) # Latent state and parameter index
 					
-					#  Turns
-					# Uses the “ones” trick to sample from the Wrapped Cauchy distribution
-					ones[t] ~ dbern(wC[t])
-					# PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure 
-					#   that wC[t] will be less than one
-					wC[t] <- (1/(2*Pi)*(1-rho[idx[t]]*rho[idx[t]])/(1+rho[idx[t]]*rho[idx[t]]-2*rho[idx[t]]*cos(theta[t]-mu[idx[t]])))/500
+				#  Steps
+				l[t] ~ dweib(v[idx[t]+1], lambda[idx[t]+1])	
+					
+				#  Turns
+				# Uses the “ones” trick to sample from the Wrapped Cauchy distribution
+				ones[t] ~ dbern(wC[t])
+				# PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure 
+				#   that wC[t] will be less than one
+				wC[t] <- (1/(2*Pi)*(1-rho[idx[t]+1]*rho[idx[t]+1])/(1+rho[idx[t]+1]*rho[idx[t]+1]-2*rho[idx[t]+1]*cos(theta[t]-mu[idx[t]+1])))/500
 
-				}
+			}
 				
 	#  Derived parameters
 	scale[1] <- (1/lambda[1])^(1/v[1])
 	scale[2] <- (1/lambda[2])^(1/v[2])
-	mean.nu1 <- mean(nu[,1])
+	mean.q[1] <- mean(q[1,])
+	mean.q[2] <- mean(q[2,])
 	
 	}

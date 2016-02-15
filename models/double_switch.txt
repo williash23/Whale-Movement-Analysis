@@ -5,7 +5,6 @@ data{
 		}	
 	}
 
-
 model{
 	#  Priors - movement state 1 = station, movement state 2 = transit
 	
@@ -15,53 +14,66 @@ model{
 		
 		#  Scale parameter for step length distribution
 		lambda[2] ~ dgamma(0.01, 0.01) # Movement state 2
-		eps ~ dnorm(0.0, 0.01)I(0.0,) # Non-negative variate to add to lambda[2]
+		eps ~ dnorm(0.01, 0.01)I(0.01,) # Non-negative variate to add to lambda[2]
 		lambda[1]  <- lambda[2] + eps # Movement state 1
 		
 		#  Mean cosine of turns
-		rho[1] ~ dunif(0, 1) # Movement state 1
-		rho[2] ~ dunif(0, 1) # Movement state 2
+		rho[1] ~ dunif(0.01, 1) # Movement state 1
+		rho[2] ~ dunif(0.01, 1) # Movement state 2
 		
 		#  Mean direction of turns
-		mu[1] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 1
-		mu[2] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 2
+		mu[1] ~ dunif(-Pi, Pi) # Movement state 1
+		mu[2] ~ dunif(-Pi, Pi) # Movement state 2
 		
-		#  State probability
-		qu[1] ~ dunif(0, 1) # Pr(state 1 at (t) | individ was in state 1 at (t-1))
-		qu[2] ~ dunif(0, 1) # Pr(state 1 at (t) | individ was in state 2 at (t-1))
-
+		for(i in 1:2){
+			#  Intercept for  switching rate
+			beta0[i] ~ dnorm(0, 0.001)T(-5, 5)
+			}
+	
+		#  Random change to the intercept for each individual
+		for (i in 1:length(ID)){
+			alpha[i] ~ dnorm(0, 0.001)T(-5, 5)
+			}
+	
+	#  Define Pi
+	Pi <- 3.14159265359	
+	
 	#  Assign state for first observation
 	phi[1] ~ dunif(0, 1)
 	phi[2] <- 1-phi[1]
-	idx[1] ~ dcat(phi[])	
-	
-	#  Define Pi
-	Pi <- 3.14159265359
+	idx[1] ~ dbern(phi[1])	
 	
 	# Likelihood
-
+	
+		#  Generate switch parameter probability conditioned on starting state
+			#  Loop over all observations
+			for (t in 1:npts){
+				#  Loop over possible states
+				for (i in 1:2){
+					logit(q[i, t]) <- beta0[idx[t]+1] + alpha[ID[t]]
+					}
+				}
+				
 		#  Loop over all observations
 			for (t in 2:npts){
-			
-				nu[t,1] <- qu[idx[t-1]]
-				nu[t,2] <- 1-qu[idx[t-1]]
-				idx[t] ~ dcat(nu[t,]) # Latent state and parameter index
+				idx[t] ~ dbern(q[idx[t-1]+1, t-1]) # Latent state and parameter index
 				
 				#  Steps
-				l[t] ~ dweib(v[idx[t]], lambda[idx[t]])	
+				l[t] ~ dweib(v[idx[t]+1], lambda[idx[t]+1])	
 								
 				#  Turns
 				# Uses the “ones” trick to sample from the Wrapped Cauchy distribution
 				ones[t] ~ dbern(wC[t])
 				# PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure 
 				#   that wC[t] will be less than one
-				wC[t] <- (1/(2*Pi)*(1-rho[idx[t]]*rho[idx[t]])/(1+rho[idx[t]]*rho[idx[t]]-2*rho[idx[t]]*cos(theta[t]-mu[idx[t]])))/500
+				wC[t] <- (1/(2*Pi)*(1-rho[idx[t]+1]*rho[idx[t]+1])/(1+rho[idx[t]+1]*rho[idx[t]+1]-2*rho[idx[t]+1]*cos(theta[t]-mu[idx[t]+1])))/500
 			
 				}
 				
 	#  Derived parameters
 	scale[1] <- (1/lambda[1])^(1/v[1])
 	scale[2] <- (1/lambda[2])^(1/v[2])
-	mean.phi1 <- mean(phi[1])
+	mean.q[1] <- mean(q[1,])
+	mean.q[2] <- mean(q[2,])
 		
 	}
