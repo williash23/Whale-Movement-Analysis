@@ -27,7 +27,7 @@ model{
 		
 		#  Intercept for  state
 		beta0 ~ dnorm(0, 0.001)T(-5, 5)
-		
+			
 		#  Random change to the intercept for each individual
 		for (i in 1:length(ID)){
 			alpha[i] ~ dnorm(0, 0.001)T(-5, 5)
@@ -42,8 +42,8 @@ model{
 				#  Loop over all observations
 				for (t in 1:npts){
 						logit(q[1, t]) <- beta0 + alpha[ID[t]]
-						q[2, t] <- 1-q[1, t]
-				}
+						#q[2, t] <- 1-q[1,t]
+						}
 					
 		#  Loop over all observations
 			for (t in 1:npts){
@@ -65,6 +65,6 @@ model{
 	scale[1] <- (1/lambda[1])^(1/v[1])
 	scale[2] <- (1/lambda[2])^(1/v[2])
 	mean.q[1] <- mean(q[1,])
-	mean.q[2] <- mean(q[2,])
+	#mean.q[2] <- mean(q[2,])
 	
 	}

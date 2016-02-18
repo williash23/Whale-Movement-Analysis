@@ -13,8 +13,8 @@ model{
 		v[2] ~ dgamma(0.01, 0.01) # Movement state 2
 		v[3] ~ dgamma(0.01, 0.01) # Movement state 3
 		
-		eps[1] ~ dnorm(0.01, 0.01)I(0.0,) 
-		eps[2] ~ dnorm(0.01, 0.01)I(0.0,) 
+		eps[1] ~ dnorm(0.01, 0.01)I(0.01,) 
+		eps[2] ~ dnorm(0.01, 0.01)I(0.01,) 
 		
 		#  Scale parameter for step length distribution
 		lambda[3] ~ dgamma(0.01, 0.01) # Movement state 3
@@ -22,39 +22,48 @@ model{
 		lambda[1] <- lambda[2] + eps[2] # Movement state 1
 		
 		#  Mean cosine of turns
-		rho[1] ~ dunif(0, 1) # Movement state 1
-		rho[2] ~ dunif(0, 1) # Movement state 2
-		rho[3] ~ dunif(0, 1) # Movement state 3
+		rho[1] ~ dunif(0.01, 1) # Movement state 1
+		rho[2] ~ dunif(0.01, 1) # Movement state 2
+		rho[3] ~ dunif(0.01, 1) # Movement state 3
 		
 		#  Mean direction of turns
-		mu[1] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 1
-		mu[2] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 2
-		mu[3] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 3
+		mu[1] ~ dunif(-Pi, Pi) # Movement state 1
+		mu[2] ~ dunif(-Pi, Pi) # Movement state 2
+		mu[3] ~ dunif(-Pi, Pi) # Movement state 3
 		
-		#  State probability
-		qq[1] ~ dunif(0, 1)
-		qq[2] ~ dunif(0, 1)
-		qq[3] ~ dunif(0, 1)
-		qu[1] ~ dunif(0, 1) # Pr(state 1 at (t) | individ was in state 1 at (t-1))
-		qu[2] ~ dunif(0, 1) # Pr(state 1 at (t) | individ was in state 2 at (t-1))
-		qu[3] ~ dunif(0, 1)
-		
-	#  Assign state for first observation 
-	idx[1] <- 1
-		
+		for(i in 1:3){
+			#  Intercept for  switching rate
+			beta0[i] ~ dnorm(0, 0.001)T(-5, 5)
+			}
+	
+		#  Random change to the intercept for each individual
+		for (i in 1:length(ID)){
+			alpha[i] ~ dnorm(0, 0.001)T(-5, 5)
+			}
+	
 	#  Define Pi
-	Pi <- 3.14159265359
+	Pi <- 3.14159265359	
+	
+	#  Assign state for first observation
+	phi[1] ~ dunif(0, 1)
+	phi[2] <- 1-phi[1]
+	idx[1] ~ dbern(phi[1])	
 	
 	# Likelihood
 	
+		#  Generate switch parameter probability conditioned on starting state
+			#  Loop over all observations
+			for (t in 1:npts){
+				#  Loop over possible states
+				for (i in 1:3){
+					logit(q[i, t]) <- beta0[idx[t]+1] + alpha[ID[t]]
+					}
+				}
+				
 		#  Loop over all observations
 			for (t in 2:npts){
-			
-				nu[t,1] <- qu[idx[t-1]]
-				nu[t,2] <- (1-qu[idx[t-1]]) * qq[idx[t-1]] 
-				nu[t,3] <- (1-qu[idx[t-1]]) * (1-qq[idx[t-1]])
-				idx[t] ~ dcat(nu[t,]) # Latent state and parameter index
-		
+				idx[t] ~ dcat(q[idx[t-1]+1, t-1]) # Latent state and parameter index
+				
 				#  Steps
 				l[t] ~ dweib(v[idx[t]], lambda[idx[t]])	
 				

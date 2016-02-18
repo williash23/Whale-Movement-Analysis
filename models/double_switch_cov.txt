@@ -42,9 +42,8 @@ model{
 	
 	#  Assign state for first observation
 	phi[1] ~ dunif(0, 1)
-	phi[2] <- 1-phi[1]
 	idx[1] ~ dbern(phi[1])	
-	
+		
 	# Likelihood
 		
 		#  Generate switch parameter probability conditioned on starting state
@@ -58,7 +57,7 @@ model{
 			
 			#  Loop over all observations starting at second time step for Markovian dependence
 			for (t in 2:npts){
-				idx[t] ~ dbern(q[idx[t-1]+1, t-1]) # Latent state and parameter index
+				idx[t] ~ dbern(q[idx[t-1]+1, t-1]*(1-same[t] + phi[1]*same[t])) # Latent state and parameter index
 								
 				#  Steps
 				l[t] ~ dweib(v[idx[t]+1], lambda[idx[t]+1])	
@@ -77,7 +76,5 @@ model{
 	scale[2] <- (1/lambda[2])^(1/v[2])
 	mean.q[1] <- mean(q[1,])
 	mean.q[2] <- mean(q[2,])
-	ship_eff[1] <- 1/(1 + exp(-beta1[1]))
-	ship_eff[2] <- 1/(1 + exp(-beta1[2]))
-		
+			
 	}

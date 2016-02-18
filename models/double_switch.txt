@@ -40,7 +40,6 @@ model{
 	
 	#  Assign state for first observation
 	phi[1] ~ dunif(0, 1)
-	phi[2] <- 1-phi[1]
 	idx[1] ~ dbern(phi[1])	
 	
 	# Likelihood
@@ -48,15 +47,15 @@ model{
 		#  Generate switch parameter probability conditioned on starting state
 			#  Loop over all observations
 			for (t in 1:npts){
-				#  Loop over possible states
+				#  Loop over states
 				for (i in 1:2){
-					logit(q[i, t]) <- beta0[idx[t]+1] + alpha[ID[t]]
+					logit(q[i, t]) <- beta0[i] + alpha[ID[t]]
 					}
 				}
 				
 		#  Loop over all observations
 			for (t in 2:npts){
-				idx[t] ~ dbern(q[idx[t-1]+1, t-1]) # Latent state and parameter index
+				idx[t] ~ dbern(q[idx[t-1]+1, t-1]*(1-same[t] + phi[1]*same[t])) # Latent state and parameter index
 				
 				#  Steps
 				l[t] ~ dweib(v[idx[t]+1], lambda[idx[t]+1])	

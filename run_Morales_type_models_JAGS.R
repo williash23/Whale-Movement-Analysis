@@ -44,15 +44,20 @@ tmp4 <- tmp3 %>%
 				distinct(ID) %>%
 				mutate(ID_2 = seq(1, n_uni))
 tmp5 <- full_join(tmp4, tmp3, by = "ID")			
-obs <- tmp5 %>%
+tmp6 <- tmp5 %>%
 			 dplyr::select(ID, ID_2, X.x, Y.x, steps.x, turns.x, shore_dist.x, ship_dist.x) 
-names(obs) <- c("ID", "ID_2", "X", "Y", "steps", "turns", "shore_dist", "ship_dist")
+names(tmp6) <- c("ID", "ID_2", "X", "Y", "steps", "turns", "shore_dist", "ship_dist")
+obs <- tmp6 %>%
+				 group_by(ID) %>%
+				 mutate(same_ID_indicator = ifelse(row_number() == 1, 1,0)) %>%
+			    as.data.frame()
 
 #  Data for models				
 #   Indexing
 npts <- nrow(obs)
 raw_ID <- obs$ID_2
 ID <- as.numeric(raw_ID)
+same <- obs$same_ID_indicator
 #   Steps and turns
 raw_l <- (obs$steps/1000)
 l <-as.numeric(raw_l)
@@ -67,7 +72,7 @@ ship <- as.numeric(scale(ship_raw))
 
 #   MCMC settings
 nc <- 3					
-ni <- 30000				
+ni <- 40000				
 nb <- 10000				
 nt <- 2			
 ################################################################################
@@ -100,15 +105,13 @@ out_single <- jags(data = jags.data,
 print(out_single, dig = 3)
 mcmcplot(out_single)
 
-# sim_reps_b0_sing <- out_single$BUGS$sims.list$b0
-# sim_reps_a0_sing <- out_single$BUGS$sims.list$a0
-# sim_reps_mu0_sing <- out_single$BUGS$sims.list$mu0
-# sim_reps_mean.wC_sing<- out_single$BUGS$sims.list$mean.wC
+sim_reps_b0_sing <- out_single$BUGS$sims.list$b0
+sim_reps_a0_sing <- out_single$BUGS$sims.list$a0
+sim_reps_mu0_sing <- out_single$BUGS$sims.list$mu0
 		
-# save(sim_reps_b0_sing, file="sim_reps_b0_sing.RData")
-# save(sim_reps_a0_sing, file="sim_reps_a0_sing.RData")
-# save(sim_reps_mu0_sing, file="sim_reps_mu0_sing.RData")
-# save(sim_reps_mean.wC_sing, file="sim_reps_mean.wC_sing.RData")
+save(sim_reps_b0_sing, file="sim_reps_b0_sing.RData")
+save(sim_reps_a0_sing, file="sim_reps_a0_sing.RData")
+save(sim_reps_mu0_sing, file="sim_reps_mu0_sing.RData")
 ####################################################################################################
 
 #  Run "double" model
@@ -121,7 +124,7 @@ inits <- function(){list(v=runif(2, 0.01, 5),
 											 lambda=c(NA,runif(1, 0.01, 5)),
 											 eps=runif(1, 0.01, 5),											 
 											 rho=runif(2, 0.01, 1), 
-											 mu=runif(2, -pi, pi),
+											 mu=runif(2, -3.141593, 3.141593),
 											 beta0=runif(1, -5, 5))
 											 }
 
@@ -142,27 +145,27 @@ out_double <- jags(data = jags.dat,
 print(out_double, dig = 3)
 mcmcplot(out_double)
 
-# sim_reps_v1_doub <- out_double$BUGS$sims.list$v[1]
-# sim_reps_v2_doub_sw <- out_double_sw$BUGS$sims.list$v[2]
-# sim_reps_scale1_doub <- out_double$BUGS$sims.list$scale[1]
-# sim_reps_scale2_doub <- out_double$BUGS$sims.list$scale[2]
-# sim_reps_mu1_doub <- out_double$BUGS$sims.list$mu[1]
-# sim_reps_mu2_doub <- out_double$BUGS$sims.list$mu[2]
-# sim_reps_mean.idx_doub <- out_double$BUGS$sims.list$mean.idx
+sim_reps_v1_doub <- out_double$BUGS$sims.list$v[1]
+sim_reps_v2_doub <- out_double$BUGS$sims.list$v[2]
+sim_reps_scale1_doub <- out_double$BUGS$sims.list$scale[1]
+sim_reps_scale2_doub <- out_double$BUGS$sims.list$scale[2]
+sim_reps_mu1_doub <- out_double$BUGS$sims.list$mu[1]
+sim_reps_mu2_doub <- out_double$BUGS$sims.list$mu[2]
+sim_reps_mean.q1_doub <- out_double$BUGS$sims.list$mean.q[1]
 		
-# save(sim_reps_v1_doub, file="sim_reps_v1_doub.RData")
-# save(sim_reps_v2_doub, file="sim_reps_v2_doub.RData")
-# save(sim_reps_scale1_doub, file="sim_reps_scale1_doub.RData")
-# save(sim_reps_scale1_doub, file="sim_reps_scale1_doub.RData")
-# save(sim_reps_mu1_doub, file="sim_reps_mu1_doub.RData")
-# save(sim_reps_mu2_doub, file="sim_reps_mu2_doub.RData")
-# save(sim_reps_mean.idx_doub, file="sim_reps_mean.idx_doub.RData")
+save(sim_reps_v1_doub, file="sim_reps_v1_doub.RData")
+save(sim_reps_v2_doub, file="sim_reps_v2_doub.RData")
+save(sim_reps_scale1_doub, file="sim_reps_scale1_doub.RData")
+save(sim_reps_scale2_doub, file="sim_reps_scale2_doub.RData")
+save(sim_reps_mu1_doub, file="sim_reps_mu1_doub.RData")
+save(sim_reps_mu2_doub, file="sim_reps_mu2_doub.RData")
+save(sim_reps_mean.q1_doub, file="sim_reps_mean.q1_doub.RData")
 ####################################################################################################
 
 #  Run "double switch" model
 
 #   Bundle data
-jags.dat <- list("npts", "l", "theta", "ID")
+jags.dat <- list("npts", "l", "theta", "ID", "same")
 
 #   Inits function
 inits <- function(){list(v=runif(2, 0.01,  5), 
@@ -170,7 +173,7 @@ inits <- function(){list(v=runif(2, 0.01,  5),
 											 eps=runif(1, 0.01, 5),
 											 rho = runif(2, 0.01, 1), 
 											 mu = runif(2, -pi, pi),
-											 phi = c(runif(1, 0.01, 1), NA),
+											 phi = runif(1, 0.01, 1),
 											 beta0=runif(2, -5, 5),
 											 idx = c(NA, rep(1, length.out = (npts-1))))
 											 }
@@ -192,25 +195,78 @@ out_double_sw <- jags(data = jags.dat,
 print(out_double_sw, dig = 3)
 mcmcplot(out_double_sw)
 
-# sim_reps_v1_doub_sw <- out_double_sw$BUGS$sims.list$v[1]
-# sim_reps_v2_doub_sw <- out_double_sw$BUGS$sims.list$v[2]
-# sim_reps_scale1_doub_sw <- out_double_sw$BUGS$sims.list$scale[1]
-# sim_reps_scale2_doub_sw <- out_double_sw$BUGS$sims.list$scale[2]
-# sim_reps_mu1_doub_sw <- out_double_sw$BUGS$sims.list$mu[1]
-# sim_reps_mu2_doub_sw <- out_double_sw$BUGS$sims.list$mu[2]
-# sim_reps_mean.idx_doub_sw <- out_double_sw$BUGS$sims.list$mean.idx
-# sim_reps_qu1_doub_sw <- out_double_sw$BUGS$sims.list$qu[1]
-# sim_reps_qu2_doub_sw <- out_double_sw$BUGS$sims.list$qu[2]
+#sim_reps_v1_doub_sw <- out_double_sw$BUGS$sims.list$v[1]
+#sim_reps_v2_doub_sw <- out_double_sw$BUGS$sims.list$v[2]
+#sim_reps_scale1_doub_sw <- out_double_sw$BUGS$sims.list$scale[1]
+#sim_reps_scale2_doub_sw <- out_double_sw$BUGS$sims.list$scale[2]
+#sim_reps_mu1_doub_sw <- out_double_sw$BUGS$sims.list$mu[1]
+#sim_reps_mu2_doub_sw <- out_double_sw$BUGS$sims.list$mu[2]
+#sim_reps_mean.q1_doub_sw <- out_double_sw$BUGS$sims.list$mean.q[1]
+#sim_reps_beta0_doub_sw <- out_double_sw$BUGS$sims.list$beta0
 		
-# save(sim_reps_v1_doub_sw, file="sim_reps_v1_doub_sw.RData")
-# save(sim_reps_v2_doub_sw, file="sim_reps_v2_doub_sw.RData")
-# save(sim_reps_scale1_doub_sw, file="sim_reps_scale1_doub_sw.RData")
-# save(sim_reps_scale2_doub_sw, file="sim_reps_scale2_doub_sw.RData")
-# save(sim_reps_mu1_doub_sw, file="sim_reps_mu1_doub_sw.RData")
-# save(sim_reps_mu2_doub_sw, file="sim_reps_mu2_doub_sw.RData")
-# save(sim_reps_mean.idx_doub_sw, file="sim_reps_mean.idx_doub_sw.RData")
-# save(sim_reps_qu1_doub_sw, file="sim_reps_qu1_doub_sw.RData")
-# save(sim_reps_qu2_doub_sw, file="sim_reps_qu2_doub_sw.RData")
+#save(sim_reps_v1_doub_sw, file="sim_reps_v1_doub_sw.RData")
+#save(sim_reps_v2_doub_sw, file="sim_reps_v2_doub_sw.RData")
+#save(sim_reps_scale1_doub_sw, file="sim_reps_scale1_doub_sw.RData")
+#save(sim_reps_scale2_doub_sw, file="sim_reps_scale2_doub_sw.RData")
+#save(sim_reps_mu1_doub_sw, file="sim_reps_mu1_doub_sw.RData")
+#save(sim_reps_mu2_doub_sw, file="sim_reps_mu2_doub_sw.RData")
+#save(sim_reps_mean.q1_doub_sw, file="sim_reps_mean.q1_doub_sw.RData")
+#save(sim_reps_beta0_doub_sw, file="sim_reps_beta0_doub_sw.RData")
+####################################################################################################
+
+#  Run "double switch with covariate" model
+
+#   Bundle data
+jags.dat <- list("npts", "l", "theta", "ship", "ID", "same")
+
+#   Inits function
+inits <- function(){list(v=runif(2, 0.01,  5), 
+											 lambda=c(NA, runif(1, 0.01, 5)), 
+											 eps=runif(1, 0.01, 5),
+											 rho = runif(2, 0.01, 1), 
+											 mu = runif(2, -pi, pi),
+											 phi = runif(1, 0.01, 1), 
+											 idx = c(NA, rep(1, length.out = (npts-1))),
+											 beta0=runif(2, -5, 5),
+											 beta1=runif(2, -5, 5))
+											 }
+
+#   Parameters to monitor
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "mean.q")
+
+#   Unleash Gibbs sampler
+out_double_sw_cov <- jags(data = jags.dat, 
+											inits = inits, 
+											parameters.to.save = params, 
+											model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_cov.txt",
+											working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
+											n.thin = nt, 
+											n.chains = nc, 
+											n.burnin = nb, 
+											n.iter = ni)
+
+print(out_double_sw_cov, dig = 3)
+mcmcplot(out_double_sw_cov)
+
+#sim_reps_v1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$v[1]
+#sim_reps_v2_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$v[2]
+#sim_reps_scale1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$scale[1]
+#sim_reps_scale2_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$scale[2]
+#sim_reps_mu1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$mu[1]
+#sim_reps_mu2_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$mu[2]
+#sim_reps_mean.q1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$mean.q[1]
+#sim_reps_beta0_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$beta0
+#sim_reps_beta1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$beta1
+		
+#save(sim_reps_v1_doub_sw_cov, file="sim_reps_v1_doub_sw_cov.RData")
+#save(sim_reps_v2_doub_sw_cov, file="sim_reps_v2_doub_sw_cov.RData")
+#save(sim_reps_scale1_doub_sw_cov, file="sim_reps_scale1_doub_sw_cov.RData")
+#save(sim_reps_scale2_doub_sw_cov, file="sim_reps_scale2_doub_sw_cov.RData")
+#save(sim_reps_mu1_doub_sw_cov, file="sim_reps_mu1_doub_sw_cov.RData")
+#save(sim_reps_mu2_doub_sw_cov, file="sim_reps_mu2_doub_sw_cov.RData")
+#save(sim_reps_beta0_doub_sw_cov, file="sim_reps_beta0_doub_sw_cov.RData")
+#save(sim_reps_beta1_doub_sw_cov, file="sim_reps_beta1_doub_sw_cov.RData")
+#save(sim_reps_mean.q1_doub_sw_cov, file="sim_reps_mean.q1_doub_sw_cov.RData")
 ####################################################################################################
 
 #  Run "double  covariate" model
@@ -245,157 +301,34 @@ out_doub_cov <- jags(data = jags.dat,
 print(out_doub_cov, dig = 3)
 mcmcplot(out_doub_cov)
 
-# sim_reps_mean.nu_h_doub_cov <- out_doub_cov$BUGS$sims.list$mean.nu_h
-# sim_reps_v1_doub_cov <- out_double_cov$BUGS$sims.list$v[1]
-# sim_reps_v2_doub_cov <- out_double_cov$BUGS$sims.list$v[2]
-# sim_reps_scale1_doub_cov <- out_double_cov$BUGS$sims.list$scale[1]
-# sim_reps_scale2_doub_cov <- out_double_cov$BUGS$sims.list$scale[2]
-# sim_reps_mu1_doub_cov <- out_double_cov$BUGS$sims.list$mu[1]
-# sim_reps_mu2_doub_cov <- out_double_cov$BUGS$sims.list$mu[2]
-# sim_reps_beta0_doub_cov <- out_double_cov$BUGS$sims.list$beta0
-# sim_reps_beta1_doub_cov <- out_double_cov$BUGS$sims.list$beta1
-# sim_reps_beta2_doub_cov <- out_double_cov$BUGS$sims.list$beta2
+sim_reps_v1_doub_cov <- out_doub_cov$BUGS$sims.list$v[1]
+sim_reps_v2_doub_cov <- out_doub_cov$BUGS$sims.list$v[2]
+sim_reps_scale1_doub_cov <- out_doub_cov$BUGS$sims.list$scale[1]
+sim_reps_scale2_doub_cov <- out_doub_cov$BUGS$sims.list$scale[2]
+sim_reps_mu1_doub_cov <- out_doub_cov$BUGS$sims.list$mu[1]
+sim_reps_mu2_doub_cov <- out_doub_cov$BUGS$sims.list$mu[2]
+sim_reps_beta0_doub_cov <- out_doub_cov$BUGS$sims.list$beta0
+sim_reps_beta1_doub_cov <- out_doub_cov$BUGS$sims.list$beta1
+sim_reps_mean.q1_doub_cov <- out_doub_cov$BUGS$sims.list$mean.q[1]
 
-# save(sim_reps_v1_doub_cov, file="sim_reps_v1_doub_cov.RData")	
-# save(sim_reps_v2_doub_cov, file="sim_reps_v2_doub_cov.RData")		
-# save(sim_reps_scale1_doub_cov, file="sim_reps_scale1_doub_cov.RData")
-# save(sim_reps_scale2_doub_cov, file="sim_reps_scale2_doub_cov.RData")
-# save(sim_reps_mu1_doub_cov, file="sim_reps_mu1_doub_cov.RData")
-# save(sim_reps_mu2_doub_cov, file="sim_reps_mu2_doub_cov.RData")
-# save(sim_reps_beta0_doub_cov, file="sim_reps_beta0_doub_cov.RData")
-# save(sim_reps_beta1_doub_cov, file="sim_reps_beta1_doub_cov.RData")
-# save(sim_reps_beta2_doub_cov, file="sim_reps_beta2_doub_cov.RData")
-# save(sim_reps_alpha_doub_cov, file="sim_reps_alpha_doub_cov.RData")
+save(sim_reps_v1_doub_cov, file="sim_reps_v1_doub_cov.RData")	
+save(sim_reps_v2_doub_cov, file="sim_reps_v2_doub_cov.RData")		
+save(sim_reps_scale1_doub_cov, file="sim_reps_scale1_doub_cov.RData")
+save(sim_reps_scale2_doub_cov, file="sim_reps_scale2_doub_cov.RData")
+save(sim_reps_mu1_doub_cov, file="sim_reps_mu1_doub_cov.RData")
+save(sim_reps_mu2_doub_cov, file="sim_reps_mu2_doub_cov.RData")
+save(sim_reps_beta0_doub_cov, file="sim_reps_beta0_doub_cov.RData")
+save(sim_reps_beta1_doub_cov, file="sim_reps_beta1_doub_cov.RData")
+save(sim_reps_mean.q1_doub_cov, file="sim_reps_mean.q1_doub_cov.RData")
 ####################################################################################################
 
-#  Run "double switch with covariate" model
-
-#   Bundle data
-jags.dat <- list("npts", "l", "theta", "ship", "ID")
-
-#   Inits function
-inits <- function(){list(v=runif(2, 0.01,  5), 
-											 lambda=c(NA, runif(1, 0.01, 5)), 
-											 eps=runif(1, 0.01, 5),
-											 rho = runif(2, 0.01, 1), 
-											 mu = runif(2, -pi, pi),
-											 phi = c(runif(1, 0.01, 1), NA),
-											 idx = c(NA, rep(1, length.out = (npts-1))),
-											 beta0=runif(2, -5, 5),
-											 beta1=runif(2, -5, 5))
-											 }
-
-#   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "ship_eff", "mean.q")
-
-#   Unleash Gibbs sampler
-out_double_sw_cov <- jags(data = jags.dat, 
-											inits = inits, 
-											parameters.to.save = params, 
-											model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_cov.txt",
-											working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-											n.thin = nt, 
-											n.chains = nc, 
-											n.burnin = nb, 
-											n.iter = ni)
-
-print(out_double_sw_cov, dig = 3)
-mcmcplot(out_double_sw_cov)
-
-# sim_reps_v1_doub_sw <- out_double_sw$BUGS$sims.list$v[1]
-# sim_reps_v2_doub_sw <- out_double_sw$BUGS$sims.list$v[2]
-# sim_reps_scale1_doub_sw <- out_double_sw$BUGS$sims.list$scale[1]
-# sim_reps_scale2_doub_sw <- out_double_sw$BUGS$sims.list$scale[2]
-# sim_reps_mu1_doub_sw <- out_double_sw$BUGS$sims.list$mu[1]
-# sim_reps_mu2_doub_sw <- out_double_sw$BUGS$sims.list$mu[2]
-# sim_reps_mean.idx_doub_sw <- out_double_sw$BUGS$sims.list$mean.idx
-# sim_reps_qu1_doub_sw <- out_double_sw$BUGS$sims.list$qu[1]
-# sim_reps_qu2_doub_sw <- out_double_sw$BUGS$sims.list$qu[2]
-		
-# save(sim_reps_v1_doub_sw, file="sim_reps_v1_doub_sw.RData")
-# save(sim_reps_v2_doub_sw, file="sim_reps_v2_doub_sw.RData")
-# save(sim_reps_scale1_doub_sw, file="sim_reps_scale1_doub_sw.RData")
-# save(sim_reps_scale2_doub_sw, file="sim_reps_scale2_doub_sw.RData")
-# save(sim_reps_mu1_doub_sw, file="sim_reps_mu1_doub_sw.RData")
-# save(sim_reps_mu2_doub_sw, file="sim_reps_mu2_doub_sw.RData")
-# save(sim_reps_mean.idx_doub_sw, file="sim_reps_mean.idx_doub_sw.RData")
-# save(sim_reps_qu1_doub_sw, file="sim_reps_qu1_doub_sw.RData")
-# save(sim_reps_qu2_doub_sw, file="sim_reps_qu2_doub_sw.RData")
-####################################################################################################
-
-## model "Switch with covariates" used in:
-## Extracting More out of Relocation Data: Building Movement Models as Mixtures of  Random Walks
-## Juan Manuel Morales, Daniel T. Haydon, Jacqui Frair, Kent E. Holsinger and John M. Fryxell 
-## contact juan.morales@uconn.edu
-
-model{
-
-   ## priors
-
-   b[1] ~ dgamma(0.01,0.01) 	## shape parameter for fast movement
-   b[2] ~ dgamma(0.01,0.01) 	## shape parameter for slow movement
-
-   a[2] ~ dgamma(0.01, 0.01)	## scale parameter for slow movement
-   eps ~ dnorm(0.0, 0.01)I(0.0,)	## a nonnegative variate
-   a[1]  <- a[2] + eps		## scale parameter for fast movement
-
-   rho[1] ~ dunif(0,1)		## mean cosine of turns for fast movement
-   rho[2] ~ dunif(0,1)		## mean cosine of turns for slow movement
-
-   mu[1] ~ dunif(-3.14159265359, 3.14159265359)	## mean direction of turns for fast movement 
-   mu[2] ~ dunif(-3.14159265359, 3.14159265359)	## mean direction of turns for slow movement
-
-   for(i in 1:10){
-      for(j in 1:2){
-         m[j,i] ~ dnorm(0,0.1)	# coefficients to relate distance to habitat i to switching rate
-      }
-   }	
-
-   for (i in 1:10){
-      m[1,i] <- 0
-   }
-
-   beta[1] ~ dnorm(0,0.1)       # intercept
-   beta[2] ~ dnorm(0,0.1)
-
-   phi[1] ~ dunif(0,1)
-   phi[2] ~ 1-phi[1]
-   idx[1] ~ dcat(phi[])		## asign state for first observation 
-  
-   Pi <- 3.14159265359		## define pi
-
-
-   for (t in 2:npts) {
-
-      logit.q[t] <- exp(beta[idx[t-1]] + m[idx[t-1],1]*water[t]/10000 + m[idx[t-1],2]*swamp[t]/10000 + m[idx[t-1],3]*otw[t]/10000 + m[idx[t-1],4]*openfor[t]/10000 + m[idx[t-1],5]*ntw[t]/10000 + m[idx[t-1],6]*mixfor[t]/10000 + m[idx[t-1],7]*dev[t]/10000 + m[idx[t-1],8]*ddf[t]/10000 + m[idx[t-1],9]*conif[t]/10000 + m[idx[t-1],10]*alvar[t]/10000)
-
-      q[t] <- logit.q[t]/(1 + logit.q[t])
-
-      nu[t,1] <- q[idx[t-1]]
-      nu[t,2] <- 1-q[idx[t-1]]
-      idx[t] ~ dcat(nu[t,])   ##  idx is the latent variable and the parameter index
-
-      ## likelihood for steps
-      l[t] ~ dweib(b[idx[t]], a[idx[t]])	# Weibull distriution for step length
-
-      ## likelihood for turns.  
-      ## use the “ones” trick (see WinBUGS manual) to sample from the Wrapped Cauchy distribution
-
-      ones[t] <- 1
-      ones[t] ~ dbern(wC[t])
-      ## below is the pdf for Wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure that wC[t] will be less than one
-      wC[t] <- ( 1/(2*Pi)*(1-rho[idx[t]]*rho[idx[t]])/(1+rho[idx[t]]*rho[idx[t]]-2*rho[idx[t]]*cos(theta[t]-mu[idx[t]t])) )/500
-
-  }
-}
-####################################################################################################
 #  Run "triple switch" model
 
 #   Bundle data
 jags.dat <- list("npts", "l", "theta")
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "q", "qq", "scale")
+params <- c("v","lambda", "mu", "rho", "beta0", "beta1", "scale")
 
 #   Inits function
 inits <- function(){list(v=runif(3, 0.01,  5), 
@@ -403,14 +336,11 @@ inits <- function(){list(v=runif(3, 0.01,  5),
 											 eps=runif(2, 0.01, 5),
 											 rho = runif(3, 0.01, 1), 
 											 mu = runif(3, -pi, pi),
-											 qu = runif(3, 0.01, 1),
-											 qq=runif(3, 0.01, 1),
-											 #phi = c(runif(2, 0.01, 1), NA),
-											 idx = c(NA, rep(1, length.out = (npts-1))))
+											 phi = c(runif(2, 0.01, 1), NA),
+											 idx = c(NA, rep(1, length.out = (npts-1))),
+											 beta0=runif(2, -5, 5),
+											 beta1=runif(2, -5, 5))
 											 }
-
-#   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "qu", "qq", "scale", "mean.idx")
 
 #   Unleash Gibbs sampler
 out_triple_sw <- jags(data = jags.dat, 
@@ -425,78 +355,6 @@ out_triple_sw <- jags(data = jags.dat,
 
 print(out_triple_sw, dig = 3)
 mcmcplot(out_triple_sw)
-
-## # phi[1] <- 0.2
-	#phi[2] <- 0..5
-	#phi[3] <- 0.3
-####################################################################################################
-
-
-## model "Triple switch" used in:
-## Extracting More out of Relocation Data: Building Movement Models as Mixtures of  Random Walks
-## Juan Manuel Morales, Daniel T. Haydon, Jacqui Frair, Kent E. Holsinger and John M. Fryxell 
-## contact juan.morales@uconn.edu
-
-model{
-
-   ## priors
-   ## shape parameters for step length
-   b[1] ~ dgamma(0.01,0.01)
-   b[2] ~ dgamma(0.01,0.01)
-   b[3] ~ dgamma(0.01,0.01) 
-
-   eps1 ~  dnorm(0.0, 0.01)I(0.0,)
-   eps2 ~ dnorm(0.0, 0.01)I(0.0,)
-   ## scale parameters for step length
-   a[3] ~ dgamma(0.01, 0.01) 
-   a[2] <- a[3] + eps1 
-   a[1] <- a[2] + eps2
-
-   ## mean cosine for turns
-   rho[1] ~ dunif(0,1)
-   rho[2] ~ dunif(0,1)
-   rho[3] ~ dunif(0,1)
-
-   ## mean direction for turns
-   mu[1] ~ dunif(-3.14159265359, 3.14159265359) 
-   mu[2] ~ dunif(-3.14159265359, 3.14159265359)
-   mu[3] ~ dunif(-3.14159265359, 3.14159265359)
-
-
-   ##  priors for the probability of switching from anything to 1
-   qq[1] ~ dunif(0,1)
-   qq[2] ~ dunif(0,1)
-   qq[3] ~ dunif(0,1)
-   q[1] ~ dunif(0,1)
-   q[2] ~ dunif(0,1)
-   q[3] ~ dunif(0,1)
-   ## asign state for first observation 
-   idx[1] ~ dcat(phi[])		
-  
-   Pi <- 3.14159265359		## define pi
-
-
-   for (t in 2:npts) {
-
-      nu[t,1] <- q[idx[t-1]]
-      nu[t,2] <- (1 -q [idx[t-1]] ) * qq[idx[t-1]] 
-      nu[t,3] <- (1 -q [idx[t-1]] ) * (1-qq[idx[t-1]] )
-
-      idx[t] ~ dcat(nu[t,])   ##  idx is the latent variable and the parameter index
-
-      ## likelihood for steps
-      l[t] ~ dweib(b[idx[t]], a[idx[t]])	# Weibull distriution for step length
-
-      ## likelihood for turns.  
-      ## use the “ones” trick (see WinBUGS manual) to sample from the Wrapped Cauchy distribution
-
-      ones[t] <- 1
-      ones[t] ~ dbern(wC[t])
-      ## below is the pdf for Wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure that wC[t] will be less than one
-      wC[t] <- ( 1/(2*Pi)*(1-rho[idx[t]]*rho[idx[t]])/(1+rho[idx[t]]*rho[idx[t]]-2*rho[idx[t]]*cos(theta[t]-mu[idx[t]t])) )/500
-
-  }
-}
 ####################################################################################################
 
 #  Hierarchical switch model
