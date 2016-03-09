@@ -7,7 +7,7 @@
 #  Load packages
 library(R2jags)
 library(dplyr)
-library(adehabitatLT)		
+library(adehabitatLT)    
 library(mcmcplots)
 
 #  Load and prep data
@@ -18,48 +18,99 @@ locs2_a <- arrange(dat, same_whale_ID, ob_order_time)
 locs3_a<- dplyr::select(locs2_a, same_whale_ID, X_whale_UTM, Y_whale_UTM)
 n_uni_a <- length(unique(locs3_a$same_whale_ID))
 locs_tmp_a <- locs3_a %>% 
-						distinct(same_whale_ID) %>%
-						mutate(Name = seq(1,n_uni_a))
-locs_tmp2_a <- full_join(locs3_a, locs_tmp_a, by = "same_whale_ID")				
+            distinct(same_whale_ID) %>%
+            mutate(Name = seq(1,n_uni_a))
+locs_tmp2_a <- full_join(locs3_a, locs_tmp_a, by = "same_whale_ID")        
 locs_a <- locs_tmp2_a %>%
-			  dplyr::select(Name, X_whale_UTM.x, Y_whale_UTM.x) %>%
-			  dplyr::rename(X = X_whale_UTM.x, Y = Y_whale_UTM.x)
-#   Create ltraj object				
-whale_traj <- as.ltraj(xy = locs_a[,c("X","Y")], id = locs_a$Name, typeII = FALSE)			  
+        dplyr::select(Name, X_whale_UTM.x, Y_whale_UTM.x) %>%
+        dplyr::rename(X = X_whale_UTM.x, Y = Y_whale_UTM.x)
+#   Create ltraj object        
+whale_traj <- as.ltraj(xy = locs_a[,c("X","Y")], id = locs_a$Name, typeII = FALSE)        
 #   Convert into dataframe
-traj_dat <- ld(whale_traj)			  
+traj_dat <- ld(whale_traj)        
 #   Connect traj_dat to dataframe with same_whale_ID
-traj_dat_full <- cbind(traj_dat, dat)
+traj_dat_full_tmp <- cbind(traj_dat, dat)
+
+#  Add location where whale was spotted (as grid ID) to data set
+gridID <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Sighting-Density/data/adjusted_density_by_first_sighting.csv")
+gridcovs <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Sighting-Density/data/env_ship_covs_sighting_density_by_gridID.csv")
+grid_dat <- full_join(gridcovs, gridID, by = "grid_ID")
+traj_dat_full <-  left_join(traj_dat_full_tmp, grid_dat, by = "same_whale_ID")
+################################################################################
+
+#  Sort only ID's that have 1+ observations. Used only "single", "double", 
+#   "double covariate" models.
 
 #  Select only needed variables and rename
 tmp <- traj_dat_full %>%
-				 dplyr::select(id, x, y, dist, rel.angle, whale_dist_shore_m, ship_whale_dist) 
+         dplyr::select(id, x, y, dist, rel.angle, grid_ID, whale_dist_shore_m, ship_whale_dist, ship_speed_scaled,
+                                    stand_trk_length_m, sst_clim, chlor_clim, bath, bath_buff_500) 
+names(tmp) <- c("ID", "X", "Y", "steps", "turns", "gridID", "shore_dist", "ship_dist", "ship_speed_scaled", 
+                                    "stand_trk_length_m", "sst_clim", "chlor_clim", "bath", "bath_buff_500")
+tmp2 <- na.omit(tmp)
+tmp3 <- filter(tmp2, steps < 5000)
+tmp4 <- tmp3 %>%
+                group_by(ID) %>%
+                mutate(same_ID_indicator = ifelse(row_number() == 1, 1,0)) %>%
+                as.data.frame()
+
+#  Generate ordered ID variable
+raw_ID <- as.numeric(tmp4$ID)
+ID <- as.factor(raw_ID)
+ID_new <- as.numeric(ID)
+tmp5 <- cbind(ID_new, tmp4)
+obs <- tmp5 %>%
+             arrange(ID_new) %>%
+             as.data.frame()
+
+#  Data for models        
+#   Indexing
+npts_1 <- nrow(obs)
+ID_1 <- obs$ID_new
+same_1 <- obs$same_ID_indicator
+nind_1 <- length(unique(ID))
+#   Steps and turns
+raw_l_1 <- ((obs$steps)/1000)
+l_1 <-as.numeric(raw_l_1)
+raw_theta_1 <-  obs$turns
+theta_1 <- as.numeric(raw_theta_1)
+#   Covariates
+shore_raw_1 <- as.numeric(obs$shore_dist)
+ship_raw_1 <- as.numeric(obs$ship_dist)
+shore_1 <-as.numeric(scale(shore_raw_1))
+ship_1 <- as.numeric(scale(ship_raw_1))
+################################################################################
+
+#  Sort only ID's that have 2+ observations. Used in "double switch" and 
+#   "double switch with covariate" models.
+tmp <- traj_dat_full %>%
+         dplyr::select(id, x, y, dist, rel.angle, whale_dist_shore_m, ship_whale_dist) 
 names(tmp) <- c("ID", "X", "Y", "steps", "turns", "shore_dist", "ship_dist")
 tmp2 <- na.omit(tmp)
 tmp3 <- filter(tmp2, steps < 5000)
+tmp6 <- tmp3 %>%
+                group_by(ID) %>%
+                filter(n() > 1) %>%
+                mutate(same_ID_indicator = ifelse(row_number() == 1, 1,0)) %>%
+                as.data.frame()
 
 #  Generate ordered ID variable
-n_uni <- length(unique(tmp3$ID))
-tmp4 <- tmp3 %>%
-				distinct(ID) %>%
-				mutate(ID_2 = seq(1, n_uni))
-tmp5 <- full_join(tmp4, tmp3, by = "ID")			
-tmp6 <- tmp5 %>%
-			 dplyr::select(ID, ID_2, X.x, Y.x, steps.x, turns.x, shore_dist.x, ship_dist.x) 
-names(tmp6) <- c("ID", "ID_2", "X", "Y", "steps", "turns", "shore_dist", "ship_dist")
-obs <- tmp6 %>%
-				 group_by(ID) %>%
-				 mutate(same_ID_indicator = ifelse(row_number() == 1, 1,0)) %>%
-			    as.data.frame()
+raw_ID <- as.numeric(tmp6$ID)
+ID <- as.factor(raw_ID)
+ID_new <- as.numeric(ID)
+tmp7 <- cbind(ID_new, tmp6)
+obs <- tmp7 %>%
+             arrange(ID_new) %>%
+             as.data.frame()
 
-#  Data for models				
+#  Data for models        
 #   Indexing
 npts <- nrow(obs)
-raw_ID <- obs$ID_2
-ID <- as.numeric(raw_ID)
+ID <- obs$ID_new
 same <- obs$same_ID_indicator
+nind <- length(unique(ID))
 #   Steps and turns
-raw_l <- (obs$steps/1000)
+raw_l <- ((obs$steps)/1000)
 l <-as.numeric(raw_l)
 raw_theta <-  obs$turns
 theta <- as.numeric(raw_theta)
@@ -71,291 +122,202 @@ ship <- as.numeric(scale(ship_raw))
 ################################################################################
 
 #   MCMC settings
-nc <- 3					
-ni <- 40000				
-nb <- 10000				
-nt <- 2			
-################################################################################
+nc <- 3
+ni <- 40000
+nb <- 15000
+nt <- 2
+na <- 5000
+
 
 #  Run "single" model
-
 #   Bundle data
-jags.data <- list("npts", "l", "theta")
+nstate <- 2
+jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, nind = nind_1)
 
 #   Inits function
-inits <- function(){list(v0=runif(1, 0.01, 10), 
-											 lambda0=runif(1, 0.01, 10), 
-											 rho0 = runif(1, 0.01, 1), 
-											 mu0 = runif(1, -pi, pi))}
+inits <- function(){list(v0 = runif(1, 0.01,  5), 
+                                             lambda0 = runif(1, 0.01, 5), 
+                                             rho0 = runif(1, 0.01, 1), 
+                                             mu0 = runif(1, -pi, pi))
+                                             }
 
-#   Parameters to estimate
-params <- c("v0","lambda0", "mu0", "scale")
+#   Parameters to monitor
+params <- c("mean.v","mean.lambda", "mean.mu", "mean.rho", "scale")
 
-#   Unleash Gibbs sampler
-out_single <- jags(data = jags.data, 
-									 inits = inits, 
-									 parameters.to.save = params, 
-									 model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/single.txt",
-									 working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-									 n.thin = nt, 
-									 n.chains = nc, 
-									 n.burnin = nb, 
-									 n.iter = ni)
+out_single <- jags.model(data = jags.dat,
+                                     file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/single_test.txt", 
+                                     inits = inits, 
+                                     n.chains = nc, 
+                                     n.adapt = na)
 
-print(out_single, dig = 3)
-mcmcplot(out_single)
+update(out_single, n.iter = nb)
 
-sim_reps_b0_sing <- out_single$BUGS$sims.list$b0
-sim_reps_a0_sing <- out_single$BUGS$sims.list$a0
-sim_reps_mu0_sing <- out_single$BUGS$sims.list$mu0
-		
-save(sim_reps_b0_sing, file="sim_reps_b0_sing.RData")
-save(sim_reps_a0_sing, file="sim_reps_a0_sing.RData")
-save(sim_reps_mu0_sing, file="sim_reps_mu0_sing.RData")
-####################################################################################################
+single_fit <- coda.samples(out_single,
+                                   variable.names= params, 
+                                   n.iter = ni, 
+                                   thin = nt)
+
+mcmcplot(single_fit)
+summary(single_fit)
+
 
 #  Run "double" model
-
 #   Bundle data
-jags.dat <- list("npts", "l", "theta", "ID")
+nstate <- 2
+jags.dat <- list(npts = npts_1, l = l_1, theta = thet_1a, ID = ID_1, nind = nind_1)
 
 #   Inits function
-inits <- function(){list(v=runif(2, 0.01, 5), 
-											 lambda=c(NA,runif(1, 0.01, 5)),
-											 eps=runif(1, 0.01, 5),											 
-											 rho=runif(2, 0.01, 1), 
-											 mu=runif(2, -3.141593, 3.141593),
-											 beta0=runif(1, -5, 5))
-											 }
+inits <- function(){list(v = runif(2, 0.01,  5), 
+                                             lambda = c(NA, runif(1, 0.01, 5)), 
+                                             eps=runif(1, 0.01, 5),
+                                             rho = runif(2, 0.01, 1), 
+                                             mu = runif(2, -pi, pi),
+                                             beta0 = runif(1, -5, 5))
+                                             }
 
-#   Parameters to estimate
-params <- c("v","lambda", "mu", "rho", "scale", "eps", "mean.q", "beta0")
+#   Parameters to monitor
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "mean.alpha", "prob1", "prob2")
 
-#   Unleash Gibbs sampler
-out_double <- jags(data = jags.dat, 
-									    inits = inits, 
-										parameters.to.save = params, 
-										model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double.txt",
-										working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-										n.thin = nt, 
-										n.chains = nc, 
-										n.burnin = nb, 
-										n.iter = ni)
+out_double<- jags.model(data = jags.dat,
+                                     file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_test.txt", 
+                                     inits = inits, 
+                                     n.chains = nc, 
+                                     n.adapt = na)
 
-print(out_double, dig = 3)
-mcmcplot(out_double)
+update(out_double, n.iter = nb)
 
-sim_reps_v1_doub <- out_double$BUGS$sims.list$v[1]
-sim_reps_v2_doub <- out_double$BUGS$sims.list$v[2]
-sim_reps_scale1_doub <- out_double$BUGS$sims.list$scale[1]
-sim_reps_scale2_doub <- out_double$BUGS$sims.list$scale[2]
-sim_reps_mu1_doub <- out_double$BUGS$sims.list$mu[1]
-sim_reps_mu2_doub <- out_double$BUGS$sims.list$mu[2]
-sim_reps_mean.q1_doub <- out_double$BUGS$sims.list$mean.q[1]
-		
-save(sim_reps_v1_doub, file="sim_reps_v1_doub.RData")
-save(sim_reps_v2_doub, file="sim_reps_v2_doub.RData")
-save(sim_reps_scale1_doub, file="sim_reps_scale1_doub.RData")
-save(sim_reps_scale2_doub, file="sim_reps_scale2_doub.RData")
-save(sim_reps_mu1_doub, file="sim_reps_mu1_doub.RData")
-save(sim_reps_mu2_doub, file="sim_reps_mu2_doub.RData")
-save(sim_reps_mean.q1_doub, file="sim_reps_mean.q1_doub.RData")
-####################################################################################################
+double_fit <- coda.samples(out_double,
+                                                         variable.names= params, 
+                                                         n.iter = ni, 
+                                                         thin = nt)
+
+mcmcplot(double_fit)
+summary(double_fit)
+
+
+
+
+
+#  Run "double covariate" model
+#   Bundle data
+nstate <- 2
+jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, ID = ID_1, nind = nind_1, shore = shore_1)
+
+#   Inits function
+inits <- function(){list(v = runif(2, 0.01,  5), 
+                                              lambda = c(NA, runif(1, 0.01, 5)), 
+                                              eps=runif(1, 0.01, 5),
+                                              rho = runif(2, 0.01, 1), 
+                                              mu = runif(2, -pi, pi),
+                                              beta0 = runif(1, -5, 5),
+                                              beta1 = runif(1, -5, 5))
+                                              }
+
+#   Parameters to monitor
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "prob1")
+
+out_double_cov <- jags.model(data = jags.dat,
+                                                                file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_cov_test.txt", 
+                                                                inits = inits, 
+                                                                n.chains = nc, 
+                                                                n.adapt = na)
+
+update(out_double_cov, n.iter = nb)
+
+double_cov_fit <- coda.samples(out_double_cov,
+                                                                   variable.names= params, 
+                                                                   n.iter = ni, 
+                                                                   thin = nt)
+
+mcmcplot(double_cov_fit)
+summary(double_cov_fit)
+
+
+
 
 #  Run "double switch" model
-
 #   Bundle data
-jags.dat <- list("npts", "l", "theta", "ID", "same")
+nstate <- 2
+jags.dat <- list(npts = npts, l = l, theta = theta, ID = ID, nstate = nstate, nind = nind)
 
 #   Inits function
-inits <- function(){list(v=runif(2, 0.01,  5), 
-											 lambda=c(NA, runif(1, 0.01, 5)), 
-											 eps=runif(1, 0.01, 5),
-											 rho = runif(2, 0.01, 1), 
-											 mu = runif(2, -pi, pi),
-											 phi = runif(1, 0.01, 1),
-											 beta0=runif(2, -5, 5),
-											 idx = c(NA, rep(1, length.out = (npts-1))))
-											 }
+inits <- function(){list(v = runif(2, 0.01,  5), 
+                                             lambda = c(NA, runif(1, 0.01, 5)), 
+                                             eps=runif(1, 0.01, 5),
+                                             rho = runif(2, 0.01, 1), 
+                                             mu = runif(2, -pi, pi),
+                                             phi = c(runif(1, 0.01, 1), NA),
+                                             beta0 = runif(2, -5, 5))
+                                             }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "mean.q")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0")
 
-#   Unleash Gibbs sampler
-out_double_sw <- jags(data = jags.dat, 
-											inits = inits, 
-											parameters.to.save = params, 
-											model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch.txt",
-											working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-											n.thin = nt, 
-											n.chains = nc, 
-											n.burnin = nb, 
-											n.iter = ni)
+out_double_sw<- jags.model(data = jags.dat,
+                                     file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_test.txt", 
+                                     inits = inits, 
+                                     n.chains = nc, 
+                                     n.adapt = na)
 
-print(out_double_sw, dig = 3)
-mcmcplot(out_double_sw)
+update(out_double_sw, n.iter = nb)
 
-#sim_reps_v1_doub_sw <- out_double_sw$BUGS$sims.list$v[1]
-#sim_reps_v2_doub_sw <- out_double_sw$BUGS$sims.list$v[2]
-#sim_reps_scale1_doub_sw <- out_double_sw$BUGS$sims.list$scale[1]
-#sim_reps_scale2_doub_sw <- out_double_sw$BUGS$sims.list$scale[2]
-#sim_reps_mu1_doub_sw <- out_double_sw$BUGS$sims.list$mu[1]
-#sim_reps_mu2_doub_sw <- out_double_sw$BUGS$sims.list$mu[2]
-#sim_reps_mean.q1_doub_sw <- out_double_sw$BUGS$sims.list$mean.q[1]
-#sim_reps_beta0_doub_sw <- out_double_sw$BUGS$sims.list$beta0
-		
-#save(sim_reps_v1_doub_sw, file="sim_reps_v1_doub_sw.RData")
-#save(sim_reps_v2_doub_sw, file="sim_reps_v2_doub_sw.RData")
-#save(sim_reps_scale1_doub_sw, file="sim_reps_scale1_doub_sw.RData")
-#save(sim_reps_scale2_doub_sw, file="sim_reps_scale2_doub_sw.RData")
-#save(sim_reps_mu1_doub_sw, file="sim_reps_mu1_doub_sw.RData")
-#save(sim_reps_mu2_doub_sw, file="sim_reps_mu2_doub_sw.RData")
-#save(sim_reps_mean.q1_doub_sw, file="sim_reps_mean.q1_doub_sw.RData")
-#save(sim_reps_beta0_doub_sw, file="sim_reps_beta0_doub_sw.RData")
-####################################################################################################
+double_sw_fit <- coda.samples(out_double_sw,
+                                    variable.names= params, 
+                                    n.iter = ni, 
+                                    thin = nt)
 
-#  Run "double switch with covariate" model
+mcmcplot(double_sw_fit)
+summary(double_sw_fit)
 
+
+
+#  Run "double switch covariate" model
 #   Bundle data
-jags.dat <- list("npts", "l", "theta", "ship", "ID", "same")
+nstate <- 2
+jags.dat <- list(npts = npts, l = l, theta = theta, ID = ID, nstate = nstate, nind = nind, ship = ship)
 
 #   Inits function
-inits <- function(){list(v=runif(2, 0.01,  5), 
-											 lambda=c(NA, runif(1, 0.01, 5)), 
-											 eps=runif(1, 0.01, 5),
-											 rho = runif(2, 0.01, 1), 
-											 mu = runif(2, -pi, pi),
-											 phi = runif(1, 0.01, 1), 
-											 idx = c(NA, rep(1, length.out = (npts-1))),
-											 beta0=runif(2, -5, 5),
-											 beta1=runif(2, -5, 5))
-											 }
+inits <- function(){list(v = runif(2, 0.01,  5), 
+                                             lambda = c(NA, runif(1, 0.01, 5)), 
+                                             eps=runif(1, 0.01, 5),
+                                             rho = runif(2, 0.01, 1), 
+                                             mu = runif(2, -pi, pi),
+                                             phi = c(runif(1, 0.01, 1), NA),
+                                             beta0 = runif(2, -5, 5),
+                                             beta1 = runif(2, -5, 5))
+                                             }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "mean.q")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1")
 
-#   Unleash Gibbs sampler
-out_double_sw_cov <- jags(data = jags.dat, 
-											inits = inits, 
-											parameters.to.save = params, 
-											model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_cov.txt",
-											working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-											n.thin = nt, 
-											n.chains = nc, 
-											n.burnin = nb, 
-											n.iter = ni)
+out_double_sw_cov<- jags.model(data = jags.dat,
+                                              file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_cov_test.txt", 
+                                               inits = inits, 
+                                               n.chains = nc, 
+                                               n.adapt = na)
 
-print(out_double_sw_cov, dig = 3)
-mcmcplot(out_double_sw_cov)
+update(out_double_sw_cov, n.iter = nb)
 
-#sim_reps_v1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$v[1]
-#sim_reps_v2_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$v[2]
-#sim_reps_scale1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$scale[1]
-#sim_reps_scale2_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$scale[2]
-#sim_reps_mu1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$mu[1]
-#sim_reps_mu2_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$mu[2]
-#sim_reps_mean.q1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$mean.q[1]
-#sim_reps_beta0_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$beta0
-#sim_reps_beta1_doub_sw_cov <- out_double_sw_cov$BUGS$sims.list$beta1
-		
-#save(sim_reps_v1_doub_sw_cov, file="sim_reps_v1_doub_sw_cov.RData")
-#save(sim_reps_v2_doub_sw_cov, file="sim_reps_v2_doub_sw_cov.RData")
-#save(sim_reps_scale1_doub_sw_cov, file="sim_reps_scale1_doub_sw_cov.RData")
-#save(sim_reps_scale2_doub_sw_cov, file="sim_reps_scale2_doub_sw_cov.RData")
-#save(sim_reps_mu1_doub_sw_cov, file="sim_reps_mu1_doub_sw_cov.RData")
-#save(sim_reps_mu2_doub_sw_cov, file="sim_reps_mu2_doub_sw_cov.RData")
-#save(sim_reps_beta0_doub_sw_cov, file="sim_reps_beta0_doub_sw_cov.RData")
-#save(sim_reps_beta1_doub_sw_cov, file="sim_reps_beta1_doub_sw_cov.RData")
-#save(sim_reps_mean.q1_doub_sw_cov, file="sim_reps_mean.q1_doub_sw_cov.RData")
-####################################################################################################
+double_sw_cov_fit <- coda.samples(out_double_sw_cov,
+                                             variable.names= params, 
+                                             n.iter = ni, 
+                                             thin = nt)
 
-#  Run "double  covariate" model
+mcmcplot(double_sw_cov_fit)
+summary(double_sw_cov_fit)
 
-#   Bundle data
-jags.dat <- list("npts", "l", "theta", "shore", "ID")
 
-#   Inits function
-inits <- function(){list(v=runif(2, 0.01, 5), 
-											 lambda=c(NA,runif(1, 0.01, 5)),
-											 eps=runif(1, 0.01, 5),											 
-											 rho=runif(2, 0.01, 1), 
-											 mu=runif(2, -pi, pi),
-											 beta0=runif(1, -5, 5),
-											 beta1=runif(1, -5, 5))
-											 }
 
-#   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "mean.q")
 
-#   Unleash Gibbs sampler
-out_doub_cov <- jags(data = jags.dat, 
-											inits = inits, 
-											parameters.to.save = params, 
-											model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_cov.txt",
-											working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-											n.thin = nt, 
-											n.chains = nc, 
-											n.burnin = nb, 
-											n.iter = ni)
 
-print(out_doub_cov, dig = 3)
-mcmcplot(out_doub_cov)
 
-sim_reps_v1_doub_cov <- out_doub_cov$BUGS$sims.list$v[1]
-sim_reps_v2_doub_cov <- out_doub_cov$BUGS$sims.list$v[2]
-sim_reps_scale1_doub_cov <- out_doub_cov$BUGS$sims.list$scale[1]
-sim_reps_scale2_doub_cov <- out_doub_cov$BUGS$sims.list$scale[2]
-sim_reps_mu1_doub_cov <- out_doub_cov$BUGS$sims.list$mu[1]
-sim_reps_mu2_doub_cov <- out_doub_cov$BUGS$sims.list$mu[2]
-sim_reps_beta0_doub_cov <- out_doub_cov$BUGS$sims.list$beta0
-sim_reps_beta1_doub_cov <- out_doub_cov$BUGS$sims.list$beta1
-sim_reps_mean.q1_doub_cov <- out_doub_cov$BUGS$sims.list$mean.q[1]
 
-save(sim_reps_v1_doub_cov, file="sim_reps_v1_doub_cov.RData")	
-save(sim_reps_v2_doub_cov, file="sim_reps_v2_doub_cov.RData")		
-save(sim_reps_scale1_doub_cov, file="sim_reps_scale1_doub_cov.RData")
-save(sim_reps_scale2_doub_cov, file="sim_reps_scale2_doub_cov.RData")
-save(sim_reps_mu1_doub_cov, file="sim_reps_mu1_doub_cov.RData")
-save(sim_reps_mu2_doub_cov, file="sim_reps_mu2_doub_cov.RData")
-save(sim_reps_beta0_doub_cov, file="sim_reps_beta0_doub_cov.RData")
-save(sim_reps_beta1_doub_cov, file="sim_reps_beta1_doub_cov.RData")
-save(sim_reps_mean.q1_doub_cov, file="sim_reps_mean.q1_doub_cov.RData")
-####################################################################################################
 
-#  Run "triple switch" model
 
-#   Bundle data
-jags.dat <- list("npts", "l", "theta")
 
-#   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "beta0", "beta1", "scale")
 
-#   Inits function
-inits <- function(){list(v=runif(3, 0.01,  5), 
-											 lambda=c(NA, NA, runif(1, 0.01, 5)), 
-											 eps=runif(2, 0.01, 5),
-											 rho = runif(3, 0.01, 1), 
-											 mu = runif(3, -pi, pi),
-											 phi = c(runif(2, 0.01, 1), NA),
-											 idx = c(NA, rep(1, length.out = (npts-1))),
-											 beta0=runif(2, -5, 5),
-											 beta1=runif(2, -5, 5))
-											 }
 
-#   Unleash Gibbs sampler
-out_triple_sw <- jags(data = jags.dat, 
-											inits = inits, 
-											parameters.to.save = params, 
-											model.file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/triple_switch.txt",
-											working.directory = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models",
-											n.thin = nt, 
-											n.chains = nc, 
-											n.burnin = nb, 
-											n.iter = ni)
 
-print(out_triple_sw, dig = 3)
-mcmcplot(out_triple_sw)
-####################################################################################################
 
 #  Hierarchical switch model
 model{
@@ -407,39 +369,45 @@ idx[1,i]~dcat(phi[])
 }
 
 # iterate over movement paths
-	for(k in 1:npaths){
-		# individual level priors
-		A[k,2] ~ dnorm(Amu.h, Asigma.h)
-		eps[k] ~ dnorm(eps.h, epstau.h)I(0,)
-		A[k,1] <- A[k,2] + eps[k]
-		B[k,1] ~ dnorm(Bmu.h[1], Btau.h[1]) I(0,)
-		B[k,2] ~ dnrom(Bmu.h[2], Btau.h[2]) I(0,)
-		RHO[k,1] ~ dbeta(arho.h[1], brho.h[1])
-		RHO[k,2] ~ dbeta(arho.h[2], brho.h[2])
-		MU[k,1] ~ dnorm(mumean.h[1], mutau.h[1])
-		MU[k,2] ~ dnorm(mumean.h[2], mutau.h[2])
-		Q[k,1] ~ dbeta(qa.h[1],qb.h[1])
-		Q[k,2] ~ dbeta(qa.h[2],qb.h[2])
+  for(k in 1:npaths){
+    # individual level priors
+    A[k,2] ~ dnorm(Amu.h, Asigma.h)
+    eps[k] ~ dnorm(eps.h, epstau.h)I(0,)
+    A[k,1] <- A[k,2] + eps[k]
+    B[k,1] ~ dnorm(Bmu.h[1], Btau.h[1]) I(0,)
+    B[k,2] ~ dnrom(Bmu.h[2], Btau.h[2]) I(0,)
+    RHO[k,1] ~ dbeta(arho.h[1], brho.h[1])
+    RHO[k,2] ~ dbeta(arho.h[2], brho.h[2])
+    MU[k,1] ~ dnorm(mumean.h[1], mutau.h[1])
+    MU[k,2] ~ dnorm(mumean.h[2], mutau.h[2])
+    Q[k,1] ~ dbeta(qa.h[1],qb.h[1])
+    Q[k,2] ~ dbeta(qa.h[2],qb.h[2])
 
 # iterate over observations
-		for (t in 2:npts) {
-			l[t,k] ~ dweib(B[k,idx[t,k]], A[k,idx[t,k]]) 
+    for (t in 2:npts) {
+      l[t,k] ~ dweib(B[k,idx[t,k]], A[k,idx[t,k]]) 
 
 # use 'ones'trick to simulate the wrapped Cauchy distribution
-			ones[t,k] <- 1
-			ones[t,k] ~ dbern( wc[t,k] )
-			wc[t,k] <- (1/(2*Pi)*(1-rho[t,k]*rho[t,k])/(1+rho[t,k]*rho[t,k]-2*rho[t,k]*cos(theta[t,k]-mu.t[t,k])))/ 300
+      ones[t,k] <- 1
+      ones[t,k] ~ dbern( wc[t,k] )
+      wc[t,k] <- (1/(2*Pi)*(1-rho[t,k]*rho[t,k])/(1+rho[t,k]*rho[t,k]-2*rho[t,k]*cos(theta[t,k]-mu.t[t,k])))/ 300
 
-			theta[t,k] ~ dunif(0,6.28318530717959)
-			rho[t,k]<-RHO[k,idx[t,k]]
-			mu.t[t,k]<- MU[k,idx[t,k]]
-			# the probability of being in movement type 1
-			p[t,k,1] <- Q[k,idx[t-1,k]]
-			p[t,k,2] <- 1-Q[k,idx[t-1,k]]
-			idx[t,k] ~ dcat(p[t,k,])
-		}
-	}
+      theta[t,k] ~ dunif(0,6.28318530717959)
+      rho[t,k]<-RHO[k,idx[t,k]]
+      mu.t[t,k]<- MU[k,idx[t,k]]
+      # the probability of being in movement type 1
+      p[t,k,1] <- Q[k,idx[t-1,k]]
+      p[t,k,2] <- 1-Q[k,idx[t-1,k]]
+      idx[t,k] ~ dcat(p[t,k,])
+    }
+  }
 }
+
+
+
+
+
+
 
 
 
@@ -473,10 +441,10 @@ names(sim_steps)[2] <- "2"
 #  Look at density plots of both on same figure.
 df_steps_sim <- melt(sim_steps)
 compare_steps_sim <- ggplot(df_steps_sim) + 
-											   geom_density(aes(x = value, colour = variable, fill = variable), alpha = .25) +
-											   xlim(0, 5000) +
-											   xlab("Step length (m)") +
-											   theme_bw()
+                         geom_density(aes(x = value, colour = variable, fill = variable), alpha = .25) +
+                         xlim(0, 5000) +
+                         xlab("Step length (m)") +
+                         theme_bw()
  compare_steps_sim
 
 
@@ -487,8 +455,8 @@ sim_turns1 <- rwrpcauchy(n, muD, rhoD)
 
 
 data{
-	#  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
-	for(i in 2:npts){
-		ones[i] <- 1
-		}	
-	}
+  #  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
+  for(i in 2:npts){
+    ones[i] <- 1
+    }  
+  }

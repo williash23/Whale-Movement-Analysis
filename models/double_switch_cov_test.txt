@@ -1,0 +1,84 @@
+data{
+  #  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
+  for(i in 1:npts){
+    ones[i] <- 1
+    }  
+  }
+
+model{
+  #  Define Pi
+  Pi <- 3.14159265359
+
+  #  Priors - movement state 1 = station, movement state 2 = transit
+    #  Shape parameter for step length distribution
+    v[1] ~ dgamma(0.01, 0.01) # Movement state 1
+    v[2] ~ dgamma(0.01, 0.01) # Movement state 2
+    
+    #  Scale parameter for step length distribution
+    lambda[2] ~ dgamma(0.01, 0.01) # Movement state 2
+    eps ~ dnorm(0.01, 0.01)I(0.01,) # Non-negative variate to add to lambda[2]
+    lambda[1]  <- lambda[2] + eps # Movement state 1
+    
+    #  Mean cosine of turns
+    rho[1] ~ dunif(0.01, 1) # Movement state 1
+    rho[2] ~ dunif(0.01, 1) # Movement state 2
+    
+    #  Mean direction of turns
+    mu[1] ~ dunif(-Pi, Pi) # Movement state 1
+    mu[2] ~ dunif(-Pi, Pi) # Movement state 2
+    
+    #  Intercept and covariate coefficient for switching rate
+    for(state in 1:nstate){
+      beta0[state] ~ dnorm(0, 0.001)T(-5, 5)
+      beta1[state] ~ dnorm(0, 0.001)T(-5, 5)
+      }
+
+    # Random change to the intercept for each individual
+    for (ind in 1:nind){
+      #  Loop over states
+      for (state in 1:nstate){
+        alpha[ind, state] ~ dnorm(0, 0.001)T(-5, 5)
+        }
+      }
+  
+  #  Assign state for first observation for each individual
+  phi[1] ~ dunif(0, 1)
+  phi[2] <- 1 - phi[1]
+
+  for(ind in 1:nind){
+    idx[ind,1] ~ dcat(phi[])
+    }
+  
+  # Likelihood
+    #  Generate switch parameter probability conditioned on starting state
+    #  Loop over all observations
+    for (t in 1:npts){
+      logit(prob1given[ID[t], t, 1]) <- beta0[1] + beta1[1]*ship[t] + alpha[ID[t], 1] # probability of being in state 1 at time t, given was in state 1 at t-1
+      logit(prob1given[ID[t], t, 2]) <- beta0[2] + beta1[2]*ship[t] + alpha[ID[t], 2] # probability of being in state 1 at time t, given was in state 2 at t-1
+      }
+
+    for(t in 2:npts){
+      state[ID[t], t, 1] <- prob1given[ID[t-1], t-1, idx[ID[t-1], t-1]] # probability of switching to or staying in state 1
+      state[ID[t], t, 2] <- 1-prob1given[ID[t-1], t-1, idx[ID[t-1], t-1]] # probability of switching to or staying in state 2
+      idx[ID[t], t] ~ dcat(state[ID[t], t,]) # Latent state and parameter index
+      
+      #  Steps
+      l[t] ~ dweib(v[idx[ID[t], t]], lambda[idx[ID[t], t]])  
+      
+      #  Turns
+      # Uses the “ones” trick to sample from the Wrapped Cauchy distribution
+      ones[t] ~ dbern(wC[t])
+      # PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure that wC[t] will be less than one
+      wC[t] <- (1/(2*Pi)*(1-rho[idx[ID[t], t]]*rho[idx[ID[t], t]])/(1+rho[idx[ID[t], t]]*rho[idx[ID[t], t]]-2*rho[idx[ID[t], t]]*cos(theta[t]-mu[idx[ID[t], t]])))/500
+      }
+        
+        
+  #  Derived parameters
+  scale[1] <- (1/lambda[1])^(1/v[1])
+  scale[2] <- (1/lambda[2])^(1/v[2])
+  #prob1 <- mean(prob_state[, , 1] ) # probability state 1 
+  #prob2 <- mean(prob_state[, , 2]) # probability state 2
+  #probstayin2from2 <- 1 - mean(prob1given[,2]) # probability of having stayed in state 2, given was in state 2
+  #probswitchfrom2to1 <- mean(prob1given[,2]) # probability of having switched to state 1, given was in state 2
+    
+  }
