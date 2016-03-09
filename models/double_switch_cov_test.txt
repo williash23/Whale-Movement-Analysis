@@ -53,8 +53,8 @@ model{
     #  Generate switch parameter probability conditioned on starting state
     #  Loop over all observations
     for (t in 1:npts){
-      logit(prob1given[ID[t], t, 1]) <- beta0[1] + beta1[1]*ship[t] + alpha[ID[t], 1] # probability of being in state 1 at time t, given was in state 1 at t-1
-      logit(prob1given[ID[t], t, 2]) <- beta0[2] + beta1[2]*ship[t] + alpha[ID[t], 2] # probability of being in state 1 at time t, given was in state 2 at t-1
+      logit(prob1given[ID[t], t, 1]) <- beta0[1] + beta1[1]*shipdens[t] + alpha[ID[t], 1] # probability of being in state 1 at time t, given was in state 1 at t-1
+      logit(prob1given[ID[t], t, 2]) <- beta0[2] + beta1[2]*shipdens[t] + alpha[ID[t], 2] # probability of being in state 1 at time t, given was in state 2 at t-1
       }
 
     for(t in 2:npts){

@@ -127,7 +127,7 @@ ni <- 1000
 nb <- 200
 nt <- 2
 na <- 200
-
+load.module("glm")
 
 #  Run "single" model
 #   Bundle data
@@ -200,7 +200,7 @@ summary(double_fit)
 
 #  Run "double covariate" model
 #   Bundle data
-jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, ID = ID_1, nind = nind_1, chlor = chlor_1, shipdens = ship_dens_1)
+jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, ID = ID_1, nind = nind_1, sst = sst_1)
 
 #   Inits function
 inits <- function(){list(v = runif(2, 0.01,  5), 
@@ -273,7 +273,7 @@ summary(double_sw_fit)
 #  Run "double switch covariate" model
 #   Bundle data
 nstate <- 2
-jags.dat <- list(npts = npts, l = l, theta = theta, ID = ID, nstate = nstate, nind = nind, ship = ship)
+jags.dat <- list(npts = npts, l = l, theta = theta, ID = ID, nstate = nstate, nind = nind, shipdens = ship_dens)
 
 #   Inits function
 inits <- function(){list(v = runif(2, 0.01,  5), 
@@ -290,17 +290,17 @@ inits <- function(){list(v = runif(2, 0.01,  5),
 params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1")
 
 out_double_sw_cov<- jags.model(data = jags.dat,
-                                              file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_cov_test.txt", 
-                                               inits = inits, 
-                                               n.chains = nc, 
-                                               n.adapt = na)
+                                                                       file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_switch_cov_test.txt", 
+                                                                       inits = inits, 
+                                                                       n.chains = nc, 
+                                                                       n.adapt = na)
 
 update(out_double_sw_cov, n.iter = nb)
 
 double_sw_cov_fit <- coda.samples(out_double_sw_cov,
-                                             variable.names= params, 
-                                             n.iter = ni, 
-                                             thin = nt)
+                                                                           variable.names= params, 
+                                                                           n.iter = ni, 
+                                                                           thin = nt)
 
 mcmcplot(double_sw_cov_fit)
 summary(double_sw_cov_fit)
