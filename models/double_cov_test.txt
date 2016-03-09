@@ -31,7 +31,6 @@ model{
     beta0 ~ dnorm(0, 0.001)T(-5, 5)
     beta1 ~ dnorm(0, 0.001)T(-5, 5)
 
-
     # Random change to the intercept for each individual
     for (ind in 1:nind){
       alpha[ind] ~ dnorm(0, 0.001)T(-5, 5)
@@ -41,7 +40,7 @@ model{
     #  Generate switch parameter probability conditioned on starting state
     #  Loop over all observations
     for (t in 1:npts){
-     logit(state[ID[t], t, 1]) <- beta0 + beta1*shore[t] + alpha[ID[t]] # probability of being in movement state 1 at time t
+     logit(state[ID[t], t, 1]) <- beta0 + beta1*shipdens[t] + alpha[ID[t]] # probability of being in movement state 1 at time t
      state[ID[t], t, 2] <- 1 - state[ID[t], t, 1]
 
       idx[ID[t], t] ~ dcat(state[ID[t], t,]) # Latent state and parameter index

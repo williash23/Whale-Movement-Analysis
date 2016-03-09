@@ -28,7 +28,7 @@ locs_a <- locs_tmp2_a %>%
 whale_traj <- as.ltraj(xy = locs_a[,c("X","Y")], id = locs_a$Name, typeII = FALSE)        
 #   Convert into dataframe
 traj_dat <- ld(whale_traj)        
-#   Connect traj_dat to dataframe with same_whale_ID
+#   Connect traj_dat to dataframe 
 traj_dat_full_tmp <- cbind(traj_dat, dat)
 
 #  Add location where whale was spotted (as grid ID) to data set
@@ -50,7 +50,7 @@ tmp <- traj_dat_full %>%
 names(tmp) <- c("ID", "X", "Y", "steps", "turns", "gridID", "shore_dist", "ship_dist", "ship_speed_scaled", 
                                     "trk_length_sum_km", "sst_clim", "chlor_clim", "bath", "bath_buff_500", "cell_area")
 tmp2 <- filter(tmp,!is.na(steps))
-tmp3 <- filter(tmp2,!is.na(turns))
+tmp3 <- filter(tmp2,!is.na(turns), !is.na(gridID))
 tmp4 <- filter(tmp3, steps < 5000)
 tmp5 <- tmp4 %>%
                 group_by(ID) %>%
@@ -66,7 +66,6 @@ obs <- tmp6 %>%
              arrange(ID_new) %>%
              as.data.frame()
 
-#  Data for models        
 #   Indexing
 npts_1 <- nrow(obs)
 ID_1 <- obs$ID_new
@@ -103,8 +102,7 @@ obs <- tmp8 %>%
              arrange(ID_new) %>%
              as.data.frame()
 
-#  Data for models        
-#   Indexing
+ #   Indexing
 npts <- nrow(obs)
 ID <- obs$ID_new
 same <- obs$same_ID_indicator
@@ -125,10 +123,10 @@ bath_ave <- as.numeric(scale(obs$bath_buff_500))
 
 #   MCMC settings
 nc <- 3
-ni <- 40000
-nb <- 15000
+ni <- 1000
+nb <- 200
 nt <- 2
-na <- 5000
+na <- 200
 
 
 #  Run "single" model
@@ -202,8 +200,7 @@ summary(double_fit)
 
 #  Run "double covariate" model
 #   Bundle data
-nstate <- 2
-jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, ID = ID_1, nind = nind_1, shore = shore_1)
+jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, ID = ID_1, nind = nind_1, chlor = chlor_1, shipdens = ship_dens_1)
 
 #   Inits function
 inits <- function(){list(v = runif(2, 0.01,  5), 
@@ -216,7 +213,7 @@ inits <- function(){list(v = runif(2, 0.01,  5),
                                               }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1", "prob1")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "beta1")
 
 out_double_cov <- jags.model(data = jags.dat,
                                                                 file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_cov_test.txt", 
