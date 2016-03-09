@@ -34,7 +34,9 @@ traj_dat_full_tmp <- cbind(traj_dat, dat)
 #  Add location where whale was spotted (as grid ID) to data set
 gridID <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Sighting-Density/data/adjusted_density_by_first_sighting.csv")
 gridcovs <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Sighting-Density/data/env_ship_covs_sighting_density_by_gridID.csv")
-grid_dat <- full_join(gridcovs, gridID, by = "grid_ID")
+grid_dat <- left_join(gridID, gridcovs, by = "grid_ID")
+
+#  Join covariates from grid cell to whale observations, by the grid that the whale was first sighted in.
 traj_dat_full <-  left_join(traj_dat_full_tmp, grid_dat, by = "same_whale_ID")
 ################################################################################
 
@@ -44,12 +46,13 @@ traj_dat_full <-  left_join(traj_dat_full_tmp, grid_dat, by = "same_whale_ID")
 #  Select only needed variables and rename
 tmp <- traj_dat_full %>%
          dplyr::select(id, x, y, dist, rel.angle, grid_ID, whale_dist_shore_m, ship_whale_dist, ship_speed_scaled,
-                                    stand_trk_length_m, sst_clim, chlor_clim, bath, bath_buff_500) 
+                                    trk_length_sum_km, sst_clim, chlor_clim, bath, bath_buff_500, cell_area) 
 names(tmp) <- c("ID", "X", "Y", "steps", "turns", "gridID", "shore_dist", "ship_dist", "ship_speed_scaled", 
-                                    "stand_trk_length_m", "sst_clim", "chlor_clim", "bath", "bath_buff_500")
-tmp2 <- na.omit(tmp)
-tmp3 <- filter(tmp2, steps < 5000)
-tmp4 <- tmp3 %>%
+                                    "trk_length_sum_km", "sst_clim", "chlor_clim", "bath", "bath_buff_500", "cell_area")
+tmp2 <- filter(tmp,!is.na(steps))
+tmp3 <- filter(tmp2,!is.na(turns))
+tmp4 <- filter(tmp3, steps < 5000)
+tmp5 <- tmp4 %>%
                 group_by(ID) %>%
                 mutate(same_ID_indicator = ifelse(row_number() == 1, 1,0)) %>%
                 as.data.frame()
@@ -58,8 +61,8 @@ tmp4 <- tmp3 %>%
 raw_ID <- as.numeric(tmp4$ID)
 ID <- as.factor(raw_ID)
 ID_new <- as.numeric(ID)
-tmp5 <- cbind(ID_new, tmp4)
-obs <- tmp5 %>%
+tmp6 <- cbind(ID_new, tmp5)
+obs <- tmp6 %>%
              arrange(ID_new) %>%
              as.data.frame()
 
@@ -70,36 +73,33 @@ ID_1 <- obs$ID_new
 same_1 <- obs$same_ID_indicator
 nind_1 <- length(unique(ID))
 #   Steps and turns
-raw_l_1 <- ((obs$steps)/1000)
-l_1 <-as.numeric(raw_l_1)
-raw_theta_1 <-  obs$turns
-theta_1 <- as.numeric(raw_theta_1)
+l_1 <-as.numeric((obs$steps)/1000)
+theta_1 <- as.numeric(obs$turns)
 #   Covariates
-shore_raw_1 <- as.numeric(obs$shore_dist)
-ship_raw_1 <- as.numeric(obs$ship_dist)
-shore_1 <-as.numeric(scale(shore_raw_1))
-ship_1 <- as.numeric(scale(ship_raw_1))
+shore_dist_1 <-as.numeric(scale(obs$shore_dist))
+ship_dist_1 <- as.numeric(scale(obs$ship_dist))
+ship_speed_1 <-as.numeric(scale(obs$ship_speed_scaled))
+ship_dens_1 <- as.numeric(scale(obs$trk_length_sum_km))
+chlor_1 <- as.numeric(scale(obs$chlor_clim)) 
+sst_1 <- as.numeric(scale(obs$sst_clim)) 
+bath_1 <- as.numeric(scale(obs$bath)) 
+bath_ave_1 <- as.numeric(scale(obs$bath_buff_500)) 
 ################################################################################
 
 #  Sort only ID's that have 2+ observations. Used in "double switch" and 
 #   "double switch with covariate" models.
-tmp <- traj_dat_full %>%
-         dplyr::select(id, x, y, dist, rel.angle, whale_dist_shore_m, ship_whale_dist) 
-names(tmp) <- c("ID", "X", "Y", "steps", "turns", "shore_dist", "ship_dist")
-tmp2 <- na.omit(tmp)
-tmp3 <- filter(tmp2, steps < 5000)
-tmp6 <- tmp3 %>%
+tmp7 <- tmp4 %>%
                 group_by(ID) %>%
                 filter(n() > 1) %>%
                 mutate(same_ID_indicator = ifelse(row_number() == 1, 1,0)) %>%
                 as.data.frame()
 
 #  Generate ordered ID variable
-raw_ID <- as.numeric(tmp6$ID)
+raw_ID <- as.numeric(tmp7$ID)
 ID <- as.factor(raw_ID)
 ID_new <- as.numeric(ID)
-tmp7 <- cbind(ID_new, tmp6)
-obs <- tmp7 %>%
+tmp8 <- cbind(ID_new, tmp7)
+obs <- tmp8 %>%
              arrange(ID_new) %>%
              as.data.frame()
 
@@ -110,15 +110,17 @@ ID <- obs$ID_new
 same <- obs$same_ID_indicator
 nind <- length(unique(ID))
 #   Steps and turns
-raw_l <- ((obs$steps)/1000)
-l <-as.numeric(raw_l)
-raw_theta <-  obs$turns
-theta <- as.numeric(raw_theta)
+l <- as.numeric((obs$steps)/1000)
+theta <- as.numeric(obs$turns)
 #   Covariates
-shore_raw <- as.numeric(obs$shore_dist)
-ship_raw <- as.numeric(obs$ship_dist)
-shore <-as.numeric(scale(shore_raw))
-ship <- as.numeric(scale(ship_raw))
+shore_dist <-as.numeric(scale(obs$shore_dist))
+ship_dist <- as.numeric(scale(obs$ship_dist))
+ship_speed <-as.numeric(scale(obs$ship_speed_scaled))
+ship_dens <- as.numeric(scale(obs$trk_length_sum_km))
+chlor <- as.numeric(scale(obs$chlor_clim)) 
+sst <- as.numeric(scale(obs$sst_clim)) 
+bath <- as.numeric(scale(obs$bath)) 
+bath_ave <- as.numeric(scale(obs$bath_buff_500)) 
 ################################################################################
 
 #   MCMC settings
