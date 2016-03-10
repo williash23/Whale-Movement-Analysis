@@ -123,15 +123,14 @@ bath_ave <- as.numeric(scale(obs$bath_buff_500))
 
 #   MCMC settings
 nc <- 3
-ni <- 1000
-nb <- 200
+ni <- 40000
+nb <- 15000
 nt <- 2
-na <- 200
+na <- 5000
 load.module("glm")
 
 #  Run "single" model
 #   Bundle data
-nstate <- 2
 jags.dat <- list(npts = npts_1, l = l_1, theta = theta_1, nind = nind_1)
 
 #   Inits function
@@ -163,7 +162,6 @@ summary(single_fit)
 
 #  Run "double" model
 #   Bundle data
-nstate <- 2
 jags.dat <- list(npts = npts_1, l = l_1, theta = thet_1a, ID = ID_1, nind = nind_1)
 
 #   Inits function
@@ -176,7 +174,7 @@ inits <- function(){list(v = runif(2, 0.01,  5),
                                              }
 
 #   Parameters to monitor
-params <- c("v","lambda", "mu", "rho", "scale", "beta0", "mean.alpha", "prob1", "prob2")
+params <- c("v","lambda", "mu", "rho", "scale", "beta0", "mean.alpha")
 
 out_double<- jags.model(data = jags.dat,
                                      file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/models/double_test.txt", 
