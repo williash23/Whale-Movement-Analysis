@@ -1,6 +1,6 @@
 # Sara Williams
 # 2/22/2016; 
-# Generate figures from parameter estimates from models formulated after code from Morales et al. 2004
+# Generate figures from parameter estimates from movement state models
 #   and run in JAGS.
 ################################################################################
 
