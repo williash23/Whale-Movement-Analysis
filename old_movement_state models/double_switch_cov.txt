@@ -1,0 +1,80 @@
+data{
+  #  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
+  for(i in 1:npts){
+    ones[i] <- 1
+    }  
+  }
+
+model{
+  #  Priors - movement state 1 = station, movement state 2 = transit
+  
+    #  Shape parameter for step length distribution
+    v[1] ~ dgamma(0.01, 0.01) # Movement state 1
+    v[2] ~ dgamma(0.01, 0.01) # Movement state 2
+    
+    #  Scale parameter for step length distribution
+    lambda[2] ~ dgamma(0.01, 0.01) # Movement state 2
+    eps ~ dnorm(0.01, 0.01)I(0.01,) # Non-negative variate to add to lambda[2]
+    lambda[1]  <- lambda[2] + eps # Movement state 1
+    
+    #  Mean cosine of turns
+    rho[1] ~ dunif(0.01, 1) # Movement state 1
+    rho[2] ~ dunif(0.01, 1) # Movement state 2
+    
+    #  Mean direction of turns
+    mu[1] ~ dunif(-Pi, Pi) # Movement state 1
+    mu[2] ~ dunif(-Pi, Pi) # Movement state 2
+    
+    for(i in 1:2){
+      #  Intercept to relate distance to ship to switching rate
+      beta0[i] ~ dnorm(0, 0.001)T(-5, 5)
+      #  Coefficient to relate distance to ship to switching rate
+      beta1[i] ~ dnorm(0, 0.001)T(-5, 5)
+      }
+  
+    #  Random change to the intercept for each individual
+    for (i in 1:length(ID)){
+      alpha[i] ~ dnorm(0, 0.001)T(-5, 5)
+      }
+  
+  #  Define pi
+  Pi <- 3.14159265359
+  
+  #  Assign state for first observation
+  phi[1] ~ dunif(0, 1)
+  idx[1] ~ dbern(phi[1])  
+    
+  # Likelihood
+    
+    #  Generate switch parameter probability conditioned on starting state
+      #  Loop over all observations
+      for (t in 1:npts){
+        #  Loop over states
+        for (i in 1:2){
+          logit(q[i, t]) <- beta0[idx[t]+1] + beta1[idx[t]+1]*ship[t] + alpha[ID[t]]
+          }
+        }
+      
+      #  Loop over all observations starting at second time step for Markovian dependence
+      for (t in 2:npts){
+        idx[t] ~ dbern(q[idx[t-1]+1, t-1]*(1-same[t] + phi[1]*same[t])) # Latent state and parameter index
+                
+        #  Steps
+        l[t] ~ dweib(v[idx[t]+1], lambda[idx[t]+1])  
+                
+        #  Turns
+        # Uses the “ones” trick to sample from the Wrapped Cauchy distribution
+        ones[t] ~ dbern(wC[t])
+        # PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure 
+        #   that wC[t] will be less than one
+        wC[t] <- (1/(2*Pi)*(1-rho[idx[t]+1]*rho[idx[t]+1])/(1+rho[idx[t]+1]*rho[idx[t]+1]-2*rho[idx[t]+1]*cos(theta[t]-mu[idx[t]+1])))/500
+    
+        }
+        
+  #  Derived parameters
+  scale[1] <- (1/lambda[1])^(1/v[1])
+  scale[2] <- (1/lambda[2])^(1/v[2])
+  mean.q[1] <- mean(q[1,])
+  mean.q[2] <- mean(q[2,])
+      
+  }

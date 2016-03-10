@@ -1,0 +1,71 @@
+## model "Switch with covariates" used in:
+
+model{
+
+   ## priors
+
+   b[1] ~ dgamma(0.01,0.01) 	## shape parameter for slow movement
+   b[2] ~ dgamma(0.01,0.01) 	## shape parameter for fast movement
+
+   a[2] ~ dgamma(0.01, 0.01)	## scale parameter for fast movement
+   eps ~ dnorm(0.0, 0.01)I(0.0,)	## a nonnegative variate
+   a[1]  <- a[2] + eps		## scale parameter for slow movement
+
+   rho[1] ~ dunif(0,1)		## mean cosine of turns for slow movement
+   rho[2] ~ dunif(0,1)		## mean cosine of turns for slow movement
+
+   mu[1] ~ dunif(-3.14159265359, 3.14159265359)	## mean direction of turns for slow movement 
+   mu[2] ~ dunif(-3.14159265359, 3.14159265359)	## mean direction of turns for fast movement
+
+   
+   for(i in 1:10){
+      for(j in 1:2){
+         m[j,i] ~ dnorm(0,0.1)	# coefficients to relate distance to habitat i to switching rate
+      }
+   }	
+
+   for (i in 1:10){
+      m[1,i] <- 0
+   }
+
+   beta[1] ~ dnorm(0,0.1)       # intercept
+   beta[2] ~ dnorm(0,0.1)
+
+   phi[1] ~ dunif(0,1)
+   phi[2] ~ 1-phi[1]
+   idx[1] ~ dcat(phi[])		## asign state for first observation 
+  
+   Pi <- 3.14159265359		## define pi
+
+
+   
+    for (t in 2:npts) {
+
+      logit.q[t] <- exp(beta[idx[t-1]] + m[idx[t-1],1]*water[t]/10000 + m[idx[t-1],2]*swamp[t]/10000 
+                                       + m[idx[t-1],3]*otw[t]/10000 + m[idx[t-1],4]*openfor[t]/10000 
+                                       + m[idx[t-1],5]*ntw[t]/10000 + m[idx[t-1],6]*mixfor[t]/10000
+                                       + m[idx[t-1],7]*dev[t]/10000 + m[idx[t-1],8]*ddf[t]/10000 
+                                       + m[idx[t-1],9]*conif[t]/10000 + m[idx[t-1],10]*alvar[t]/10000)
+
+      q[t] <- logit.q[t]/(1 + logit.q[t])
+
+      nu[t,1] <- q[idx[t-1]]
+      nu[t,2] <- 1-q[idx[t-1]]
+      idx[t] ~ dcat(nu[t,])   ##  idx is the latent variable and the parameter index
+
+      
+
+
+     ## likelihood for steps
+      l[t] ~ dweib(b[idx[t]], a[idx[t]])	# Weibull distriution for step length
+
+      ## likelihood for turns.  
+      ## use the “ones” trick (see WinBUGS manual) to sample from the Wrapped Cauchy distribution
+
+      ones[t] <- 1
+      ones[t] ~ dbern(wC[t])
+      ## below is the pdf for Wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure that wC[t] will be less than one
+      wC[t] <- ( 1/(2*Pi)*(1-rho[idx[t]]*rho[idx[t]])/(1+rho[idx[t]]*rho[idx[t]]-2*rho[idx[t]]*cos(theta[t]-mu[idx[t]t])) )/500
+
+  }
+}
