@@ -13,22 +13,22 @@ model{
     #  Shape parameter for step length distribution
     v[1] ~ dgamma(0.01, 0.01) # Movement state 1
     v[2] ~ dgamma(0.01, 0.01) # Movement state 2
-    
+
     #  Scale parameter for step length distribution
+    lambda[1] <- lambda[2] + eps # Movement state 1
     lambda[2] ~ dgamma(0.01, 0.01) # Movement state 2
-    eps ~ dnorm(0.01, 0.01)I(0.01,) # Non-negative variate to add to lambda[2]
-    lambda[1]  <- lambda[2] + eps # Movement state 1
-    
+    eps ~ dnorm(0, 0.001)T(0, 10) # Non-negative variate to add to lambda[2]
+
     #  Mean cosine of turns
     rho[1] ~ dunif(0.01, 1) # Movement state 1
     rho[2] ~ dunif(0.01, 1) # Movement state 2
     
     #  Mean direction of turns
-    mu[1] ~ dunif(-Pi, Pi) # Movement state 1
-    mu[2] ~ dunif(-Pi, Pi) # Movement state 2
-   
+    mu[1] ~ dunif(-3.14, 3.14) # Movement state 1
+    mu[2] ~ dunif(-2, 2) # Movement state 2
+
     #  Intercept for state probability
-    beta0 ~ dnorm(0, 0.001)T(-5, 5)
+    beta0 ~ dnorm(0, 0.001)T(-10, 10)
 
     # Random change to the intercept for each individual
     for (ind in 1:nind){
@@ -41,7 +41,7 @@ model{
     for (t in 1:npts){
       logit(state[ID[t], t, 1]) <- beta0 + alpha[ID[t]] # probability of being in movement state 1 at time t
       state[ID[t], t, 2] <- 1 - state[ID[t], t, 1]
-      
+
       idx[ID[t], t] ~ dcat(state[ID[t], t,]) # Latent state and parameter index
 
       #  Steps
