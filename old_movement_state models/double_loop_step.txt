@@ -1,0 +1,45 @@
+data{
+  #  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
+    for(ind in 1:nind){
+      for(t in 1:nocc[ind]){
+        ones[ind, t] <- 1
+      }  
+    }
+  }
+
+model{
+   #  Priors - movement state 1 = station, movement state 2 = transit
+    #  Shape parameter for step length distribution
+    v[1] ~ dgamma(0.001, 0.001) # Movement state 1
+    v[2] ~ dgamma(0.001, 0.001) # Movement state 2
+
+    #  Scale parameter for step length distribution
+    lambda[2] <- lambda[1] + eps # Movement state 
+    lambda[1] ~ dgamma(0.01, 0.01) # Movement state 
+    eps ~ dnorm(0, 0.001)T(0,) # Non-negative variate to add to lambda[1]
+
+    #  Intercept for being in state 1 probability
+    beta0 ~ dnorm(0, 0.001)T(-5, 5)
+
+    # Random change to the intercept for each individual for state 1
+    #tau_alpha ~ dunif(0, 50)
+    #for (ind in 1:nind){
+      #alpha[ind] ~ dnorm(0, tau_alpha)T(-5, 5)
+        #}
+
+  # Likelihood
+    #  Generate probability of being in state 1 or 2
+    #  Loop over all observations
+    for(ind in 1:nind){
+      for (t in 1:nocc[ind]){ # nocc is the number of observations that occurs for each individual
+        
+        logit(state[ind, t, 1]) <- beta0 #+ alpha[ind] # probability of being in state 1 at time t
+        state[ind, t, 2] <- 1 - state[ind, t, 1]
+        idx[ind, t] ~ dcat(state[ind, t,]) # Latent state and parameter index
+
+        #  Steps
+        l[ind, t] ~ dweib(v[idx[ind, t]], lambda[idx[ind, t]]) 
+      }
+    }
+    
+  }

@@ -1,0 +1,31 @@
+data{
+  #  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
+  for(i in 1:npts){
+    ones[i] <- 1
+    }  
+  }
+
+model{  
+#  Priors 
+  
+    #  Shape parameter for step length distribution
+    v ~ dgamma(0.01, 0.01)
+
+    #  Scale parameter for step length distribution
+    lambda ~ dgamma(0.01, 0.01)  
+
+  # Random change to the intercept for each individual
+  # tau_alpha ~ dunif(0, 50)
+  # for (ind in 1:nind){
+    # alpha[ind] ~ dnorm(0, tau_alpha)T(-5, 5)
+    # }
+
+  # Likelihood
+    #  Loop over all observations
+    for (t in 1:npts){
+
+      #  Steps
+      l[t] ~ dweib(v, lambda)  
+
+      }
+    }
