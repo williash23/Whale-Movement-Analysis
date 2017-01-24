@@ -19,6 +19,9 @@ library(ggthemes)
 load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_modes/model_out/post_sims.RData")
 ################################################################################
 
+#  Make circle plot - includes all turn angles but uses pulls from posterior for steps
+#   radiu = poster pull step length
+#   Instead of using entire circles using pie pieces???
 #  Generate vectors to hold data with package 'packcircles'
 r <- post_sims$steps
 id <- seq(1, length(r), 1)
@@ -31,7 +34,7 @@ points <- dplyr::arrange(points, by = r)
 #   Here, each iteration's step length is the radius of the circle
 dat <- circlePlotData(points, npoints = 100, xyr.cols = 1:3, id.col = 4)
 
-#  Plot all of thesee circles (45000 circles from the 45000 simulated values from 45000 MCMC iterations)
+#  Plot all of these circles (45000 circles from the 45000 simulated values from 45000 MCMC iterations)
 p <- ggplot() +
         geom_polygon(data=dat, aes(x, y, group=id), fill = "grey47", alpha = 0.1, linetype = 0) +
         coord_equal() +
@@ -43,7 +46,6 @@ p <- ggplot() +
 p
 
 ################################################################################
-library(gridExtra)
 
 #  MCMC plots with package 'ggmcmc'
 s_1 <- ggs(single_fit, family = "^mu|^rho")
@@ -147,3 +149,25 @@ cor_plot <- ggs_autocorrelation(s)+
                    axis.title = element_text(size = rel(2)))
 cor_plot
 
+
+
+
+
+
+
+
+
+
+color <-graycol(n = 50)
+dr <- 0.05
+emptyplot(xlim = c(-2, 2), col = color[length(color)],
+main = "filledcircle")
+filledcircle(r1 = 1, mid = c(1, 1), dr = dr,
+col = shadepalette(endcol = "darkblue"))
+
+filledcircle(r1 = post_sims$steps[1], r2 = 0, mid = c(0,0), dr = 0.01, from = 0, to = post_sims$turns[1], col = shadepalette(endcol = "darkblue"))
+
+
+
+
+ draw.arc(x=0,y=0,radius=post_sims$steps[1],angle1=0,angle2=post_sims$turns[1],n=0.05)

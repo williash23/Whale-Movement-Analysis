@@ -17,8 +17,8 @@ dat <- dat_raw %>%
             group_by(same_whale_ID) %>%
             filter(n() >1) %>%
             ungroup() %>%
+            filter(count == 1) %>%
             as.data.frame()
-
 
 #  Generate step lengths and turning angles using ADEpackage
 locs_a <- arrange(dat, same_whale_ID, ob_order_time)
@@ -62,20 +62,26 @@ traj_dat <- ld(whale_traj)
     # names(tmp) <- c("ID", "X", "Y", "steps", "turns", "gridID",  "ship_dist", "ship_speed_scaled", 
                                   # "trk_length_sum_km", "sst_clim", "chlor_clim", "bath", "bath_buff_500", "cell_area")
 tmp <- traj_dat %>%
-            dplyr::select(id, x, y, dist, rel.angle, abs.angle) 
-names(tmp) <- c("same_whale_ID", "X", "Y", "steps", "turns", "abs_angle")
+            dplyr::select(id, x, y, dist, rel.angle, abs.angle, pkey) 
+names(tmp) <- c("same_whale_ID", "X", "Y", "steps", "turns", "abs_angle", "pkey")
 
+#  Prep data - this is what I used for my original model runs.
 #  Add time difference between successive observations to observations.
         time_1 <- dat %>%
-                         dplyr::select(TimeTxt, X_whale_UTM, Y_whale_UTM, ob_order_time, ship_whale_dist) %>%
+                         dplyr::select(TimeTxt, X_whale_UTM, Y_whale_UTM, ob_order_time, 
+                         ship_whale_dist, ship_whale_bearing, whale_behavior) %>%
                          as.data.frame()
         time_2 <- as.data.frame(str_split_fixed(time_1$TimeTxt, ":", 3))
         time_3 <- cbind(time_2, time_1$X_whale_UTM, time_1$Y_whale_UTM, time_1$ob_order_time,
-                                   time_1$ship_whale_dist)
+                                   time_1$ship_whale_dist, time_1$ship_whale_bearing, time_1$whale_behavior, 
+                                   time_1$TimeTxt)
         names(time_3)[4] <- "X"
         names(time_3)[5] <- "Y"
         names(time_3)[6] <- "ob_order_time"
         names(time_3)[7] <- "ship_whale_dist"
+        names(time_3)[8] <- "ship_whale_bearing"
+        names(time_3)[9] <- "whale_behavior"
+        names(time_3)[10] <- "time_txt"
         time_3$V1 <- as.character(time_3$V1)
         time_3$V2 <- as.character(time_3$V2)
         time_3$V3 <- as.character(time_3$V3)
@@ -91,28 +97,18 @@ names(tmp) <- c("same_whale_ID", "X", "Y", "steps", "turns", "abs_angle")
                          dplyr::mutate(sec_frac = sec/60, min_sec = sec_frac+min) %>%
                          dplyr::mutate(min_frac = min_sec/60, time = hr+min_frac)
 
-tmp2 <- cbind(tmp, time_4$time, time_4$ob_order_time, time_4$ship_whale_dist)
-names(tmp2)[7] <- "time_hrs"
-names(tmp2)[8] <- "ob_order_time"
-names(tmp2)[9] <- "ship_whale_dist"
-tmp3 <- tmp2 %>%
-              group_by(same_whale_ID) %>%
-              mutate(time_diff = lead(time_hrs) - time_hrs) %>%
-              mutate(time_diff_sec = time_diff*3600) 
-tmp3$time_diff_sec[tmp3$time_diff_sec == 0] <- 0.01
-tmp4 <- tmp3%>%
-              mutate(velocity_m_s = steps/time_diff_sec) %>%
-              as.data.frame()
+tmp2 <- cbind(tmp, time_4$time, time_4$ob_order_time, time_4$ship_whale_dist, 
+                        time_4$ship_whale_bearing, time_4$whale_behavior, time_4$time_txt)
+names(tmp2)[8] <- "time_hrs"
+names(tmp2)[9] <- "ob_order_time"
+names(tmp2)[10] <- "ship_whale_dist"
+names(tmp2)[11] <- "ship_whale_bearing"
+names(tmp2)[12] <- "whale_behavior"
+names(tmp2)[13] <- "time_txt"
 
-#  Remove data points based on obvious breaks or errors
-input_dat <- filter(tmp4, steps < 10000) #, time_diff_sec < 750, time_diff_sec > 6, velocity_m_s < 50)
-#### 2088 m and less is broken at the 95 percentile of step lengths
- 
-# #  Remove observations that do not have a turning angle
-# tmp5 <- filter(tmp4, steps < 6000, time_diff_sec < 1200, time_diff_sec > 6, velocity_m_s < 50)
-# input_dat <-  filter(tmp5,!is.na(turns))
-#tmp3 <- filter(tmp2,!is.na(turns), !is.na(gridID))
+input_dat <- filter(tmp2, steps < 6001) 
 ################################################################################
+
 
 #  Organize data and give sequential IDs: used in "single", "double", "double covariate" models.
 obs_1 <- input_dat %>%
@@ -123,7 +119,7 @@ obs_1 <- input_dat %>%
                as.data.frame()
 
 #  Data for SINGLE model only
-l_single <- (obs_1$steps)/1000
+l_single <- obs_1$steps #)/1000
 theta_single <- obs_1$turns
 # ship <- as.numeric(scale(obs_1$ship_dist))
 

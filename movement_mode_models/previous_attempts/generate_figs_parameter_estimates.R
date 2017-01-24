@@ -10,6 +10,7 @@ library(reshape)
 library(ggplot2)
 library(dplyr)
 library(rjags)
+library(emojifont)
 
 ################################################################################
 # Load output from MCMC posterior distribtuion iterations (JAGS object)
@@ -71,7 +72,7 @@ load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_m
                                           mutate(iter_num = 1:nrow(post_sims))
 
 #  Save simulated step length and turning angle values generated from MCMC posterior distribtions for later use.
-save(post_sims, file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_modes/model_out/post_sims.RData")
+#save(post_sims, file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_modes/model_out/post_sims.RData")
 
 #  Two movement modes model
     #   Select rows from posterior distribution for each parameter estimate.
@@ -105,15 +106,23 @@ save(post_sims, file = "C:/Users/sara.williams/Documents/GitHub/Whale-Movement-A
           turns_t <- numeric(length = nrow(sims_t))
           steps_s <- numeric(length = nrow(sims_s))
           turns_s <- numeric(length = nrow(sims_s))
+          
+           rwcauchy <- function(n, mu = 0, rho = 0) {
+              u = runif(n)
+              V = cos(2 * pi * u)
+              c = 2 * rho/(1 + rho^2)
+              t <- (sign(runif(n) - 0.5) * acos((V + c)/(1 + c * V)) + mu)%%(2 * pi)
+              return(t)
+          }
       
           for(i in 1:nrow(sims_t)){
             steps_t[i] <- rweibull(1, sims_t[i,3], (1/sims_t[i,4])^(1/sims_t[i,3]))
-            turns_t[i] <- turns[i] <- rwcauchy(1, sims_t[i,1], sims_t[i,2])
+            turns_t[i] <- rwcauchy(1, sims_t[i,1], sims_t[i,2])
             #rwrappedcauchy(1, sims_t[i,1],  sims_t[i,2])
             }
           for(i in 1:nrow(sims_s)){
             steps_s[i] <- rweibull(1, sims_s[i,3], (1/sims_s[i,4])^(1/sims_s[i,3]))
-            turns_s[i] <- turns[i] <- rwcauchy(1, sims_s[i,1], sims_s[i,2])
+            turns_s[i] <- rwcauchy(1, sims_s[i,1], sims_s[i,2])
             #rwrappedcauchy(1, sims_s[i,1],  sims_s[i,2])
             }
 
@@ -138,8 +147,8 @@ steps_plot <- ggplot(post_sims_plot) +
                           geom_density(aes(steps), fill = "#EBCC2A", colour = "#EBCC2A") +
                           xlab("Step length (km)") +
                           ylab("Frequency") +
-                          xlim(c(0, 10)) +
-                          ylim(c(0, 1.5)) +
+                          xlim(c(0, 5)) +
+                          ylim(c(0, 2.5)) +
                           theme_bw() +
                           theme(panel.grid.minor = element_blank())
 steps_plot
@@ -149,7 +158,7 @@ steps_plot <- ggplot(post_sims_plot) +
                           xlab("Step length (km)") +
                           ylab("Frequency") +
                           xlim(c(0, 5)) +
-                          ylim(c(0, 1.5)) +
+                          ylim(c(0, 2.5)) +
                           theme_bw() +
                           theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
                           axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2)))
@@ -225,20 +234,27 @@ turns_pt <- ggplot(post_sims_plot, aes(turns, iter_num)) +
 turns_pt
 ################################################################################
 
-#  Generate many simulations of N steps
-#  Identify which models posterior iterations to use
+#   If using previously generated posterior simulation data:
+#  Load simulated step length and turning angle values generated from MCMC posterior distribtions
+load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_modes/model_out/post_sims.RData")
+################################################################################
+
+#  Plot for simulated CRW
+#   Generate many simulations of N steps
+
+#   Identify which models posterior iterations to use
 mod <- post_sims
 #   Number of movement paths
 npath <- 10
 #   Length of walk
-nobs <- 3
+nobs <- 5
 #   Matrices to hold simulations
 mat_X <- matrix(nrow = nobs, ncol = npath)
 mat_Y <- matrix(nrow = nobs, ncol = npath)
 
-s <- 0.65
-e <- 0.85
-dirs <- seq(s, e, ((e-s)/(npath-1)))
+# s <- 0.65
+# e <- 0.85
+# dirs <- seq(s, e, ((e-s)/(npath-1)))
 
 for(j in 1:npath){
 keep <- sample(1:nrow(mod), nobs, replace = T)
@@ -288,7 +304,8 @@ sim_crw <- ggplot() +
 sim_crw
 ################################################################################
 
-library(emojifont)
+#   Make probability plot for a single movement segment
+#   Uses pulls from posteriors for turning angle and step length
 load.emojifont('OpenSansEmoji.ttf')
 
  # post_sims_95 <- post_sims %>%
@@ -298,12 +315,12 @@ load.emojifont('OpenSansEmoji.ttf')
                                     # & turns > (quantile(post_sims$turns, probs = 0.10))
                                     
 ### Show all possible turn angles but show variation in step length
-circ <- seq(2.80, 4.71, 0.01) #### 180 degree arc of interest from ship perspective
+#circ <- seq(2.80, 4.71, 0.01) #### 180 degree arc of interest from ship perspective
 #circ <- seq(0.54, 5.74, 0.01) #### 90% credible interval of turn angles
 #  Identify which models posterior iterations to use
 mod <- post_sims
 #   Number of movement paths
-npath <- length(circ)
+npath <- 10000
 #   Length of walk
 nobs <- 2
 #   Matrices to hold simulations
@@ -312,14 +329,13 @@ mat_Y <- matrix(nrow = nobs, ncol = npath)
 
 for(i in 1:npath){
      keep <- sample(1:nrow(mod), nobs, replace = FALSE)
-    #keep <- keep_start:(keep_start+nsteps-1)
-
+ 
        # make distributed steps
        steps_sim <- mod[keep, 1]
        # make clustered turning angles
        theta_sim <- mod[keep, 2]
        theta_sim[1] <- 0
-       theta_sim[2] <- 0.785
+       #theta_sim[2] <- 0
        #theta_sim[2] <- circ[i]
        # cumulative angle (absolute orientation)
        phi_sim <- cumsum(theta_sim)
@@ -327,7 +343,6 @@ for(i in 1:npath){
        dX_sim <- steps_sim*cos(phi_sim)
        dX_sim[1] <- 0 ##MAKE EACH START AT [0,0]
        dY_sim <- steps_sim*sin(phi_sim)
-       
        # actual X-Y values
        X_sim <- as.matrix(cumsum(dX_sim))
        Y_sim <- as.matrix(cumsum(dY_sim))
@@ -346,52 +361,136 @@ df_XY <- df_XY_tmp %>%
                dplyr::select(walk_num, location_num, X, Y) %>%
                mutate(model = "Single State")
 
+df_XY_path <- df_XY %>%
+                        filter(location_num == 2) 
 
-ship_line <- data.frame(x1 = -2, x2 = -2, y1 = 3.5, y2 = 0.5)
-ship_loc1 <- data.frame(x = -2, y = 3.8, label = (emoji('ship')))
+ship_line <- data.frame(x1 = -2, x2 = -2, y1 = 1.8, y2 = 0.5)
+ship_loc1 <- data.frame(x = -2, y = 1.8, label = (emoji('ship')))
 ship_loc2 <- data.frame(x = -2, y = 0.2, label = (emoji('ship')))
-whale_loc <- data.frame(x = 0.4, y = 0, label = (emoji('whale')))
+#whale_loc <- data.frame(x = 0.2, y = 0, label = (emoji('whale')))
+whale_loc <- data.frame(x = 0, y = 0, label = "X")
 
-#  Figure of all simulated locations/paths and ship moving - 7.5 min at 13 kts == 3 km of ship movement.
-sim_step_crw <- ggplot() + 
-                            geom_polygon(data = df_XY, aes(x = X, y = Y, group = walk_num), colour = "gray47" fill = "gray47") +
-                            #geom_path(data = df_XY2, aes(x = X, y = Y, group = walk_num)) +
-                            xlab("X (km)") +
-                            xlim(c(-8, 8)) +
-                            ylab("Y (km)") +
-                            ylim(c(6, -6)) +
-                            theme_bw() +
-                            theme(panel.grid.minor = element_blank(), panel.border = element_blank(), axis.text = element_text(size = rel(2)), 
-                            axis.title = element_text(size = rel(2))) +
-                            geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1.5, 
-                            data = ship_line, arrow = arrow(length = unit(0.15, "inches"), type = "closed")) +
-                            geom_text(data = ship_loc1, aes(x, y, label=label), family="OpenSansEmoji", size=15, colour = "darkred") +
-                            geom_text(data = ship_loc2, aes(x, y, label=label), family="OpenSansEmoji", size=15, colour = "darkred", alpha = 0.2) +
-                            geom_text(data = whale_loc, aes(x, y, label=label), family="OpenSansEmoji", size=14, colour="darkblue")
-sim_step_crw 
+#  Figure of all simulated paths and ship
+one_move_sim <- ggplot() + 
+                              geom_path(data = df_XY_path, alpha= 0.05, aes(x = X, y = Y, group = walk_num), colour = "black", size = 1) +
+                              xlab("X (km)") +
+                              xlim(c(-7, 10)) +
+                              ylab("Y (km)") +
+                              ylim(c(5, -5)) +
+                              theme_bw() +
+                              theme(panel.grid.minor = element_blank(), axis.text = element_text(size = rel(2)), 
+                              axis.title = element_text(size = rel(2))) +
+                              geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1.5, 
+                                                                data = ship_line, arrow = arrow(length = unit(0.15, "inches"), type = "closed")) +
+                              geom_text(data = ship_loc1, aes(x, y, label=label), family="OpenSansEmoji", size=15, colour = "darkred") +
+                              geom_text(data = ship_loc2, aes(x, y, label=label), family="OpenSansEmoji", size=15, colour = "#dc143c", alpha = 0.2) +
+                              geom_text(data = whale_loc, aes(x, y, label=label), family="OpenSansEmoji", size=5, colour="dodgerblue")
+one_move_sim 
+
+#   Number of movement paths
+npath <- 10000
+#   Length of walk
+nobs <- 3
+#   Matrices to hold simulations
+mat_X <- matrix(nrow = nobs, ncol = npath)
+mat_Y <- matrix(nrow = nobs, ncol = npath)
+
+for(i in 1:npath){
+     keep <- sample(1:nrow(mod), nobs, replace = FALSE)
+ 
+       # make distributed steps
+       steps_sim <- mod[keep, 1]
+       # make clustered turning angles
+       theta_sim <- mod[keep, 2]
+       theta_sim[1] <- 0
+       theta_sim[2] <- 0
+       #theta_sim[2] <- circ[i]
+       # cumulative angle (absolute orientation)
+       phi_sim <- cumsum(theta_sim)
+       # step length components -- 
+       dX_sim <- steps_sim*cos(phi_sim)
+       dX_sim[1] <- 0 ##MAKE EACH START AT [0,0]
+       dX_sim[2] <- 0
+       dY_sim <- steps_sim*sin(phi_sim)
+       dY_sim[1] <- 0
+       dY_sim[2] <- 0.5
+       # actual X-Y values
+       X_sim <- as.matrix(cumsum(dX_sim))
+       Y_sim <- as.matrix(cumsum(dY_sim))
+       mat_X[,i] <- X_sim
+       mat_Y[,i] <- Y_sim
+   }
+
+#  Data from for locations.
+df_X_tmp <- as.data.frame(mat_X)
+df_Y_tmp <- as.data.frame(mat_Y)
+df_X <- melt(df_X_tmp)
+df_Y <- melt(df_Y_tmp)
+df_XY_tmp <- cbind(df_X , df_Y, rep(1:nobs))
+names(df_XY_tmp) <- c("walk_num", "X", "walk_num_rep", "Y", "location_num")
+df_XY <- df_XY_tmp %>%
+               dplyr::select(walk_num, location_num, X, Y) %>%
+               mutate(model = "Single State")
+
+#  Make data suitable for plotting as points
+df_XY_pt <- df_XY %>%
+                    filter(location_num == 2) 
+
+ship_line <- data.frame(x1 = -2, x2 = -2, y1 = 1.8, y2 = 0.5)
+ship_loc1 <- data.frame(x = -2, y = 1.8, label = (emoji('ship')))
+ship_loc2 <- data.frame(x = -2, y = 0.2, label = (emoji('ship')))
+#whale_loc <- data.frame(x = 0.2, y = 0, label = (emoji('whale')))
+whale_loc <- data.frame(x = 0, y = 0)
+whale_seg <- data.frame(x1= 6.25, y1=0, x2 = 7, y2 = 0)
 
 
+#  Figure of all simulated location (points) and ship
+one_move_sim_pt <- ggplot() + 
+                                    geom_point(data = df_XY_pt, alpha= 0.1, aes(x = X, y = Y, group = walk_num), colour = "grey50", fill = "grey50", size = 2) +
+                                    xlab("X (km)") +
+                                    xlim(c(-10, 10)) +
+                                    ylab("Y (km)") +
+                                    ylim(c(10, -10)) +
+                                    theme_bw() +
+                                    theme(panel.grid.minor = element_blank(), axis.text = element_text(size = rel(2)), 
+                                                axis.title = element_text(size = rel(2))) +
+                                    geom_point(data = whale_loc, aes(x, y), size=3, colour="black") +
+                                    geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1, 
+                                                                      data = whale_seg, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
+                                    annotate("point", x = 0, y = 0, colour ="black", size = 280, shape=1) 
+                                    #annotate("text", x = -7.75, y = 0, label = "pi", parse = T, size = 10) +
+                                    #annotate("text", x = 7.75, y = 0, label = "0", parse = T, size = 10) +
+                                    #annotate("text", x = 0, y = 7.75, label = "pi/2", parse = T, size = 10) +
+                                    #annotate("text", x = 0, y = -7.75, label = "3 pi/2", parse = T, size = 10) 
+                                    #geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1.5, 
+                                                                      #data = ship_line, arrow = arrow(length = unit(0.15, "inches"), type = "closed")) +
+                                    #geom_text(data = ship_loc1, aes(x, y, label=label), family="OpenSansEmoji", size=12, colour = "#dc143c") +
+                                    #geom_text(data = ship_loc2, aes(x, y, label=label), family="OpenSansEmoji", size=12, colour = "#dc143c", alpha = 0.2) 
+                                    
+one_move_sim_pt
 
-ship_line <- data.frame(x1 = -2, x2 = -2, y1 = 4.7, y2 = 1)
-ship_loc <- data.frame(x=-2, y=5, label = (emoji('ship')))
-whale_loc <- data.frame(x = 0.4, y = 0, label = (emoji('whale')))
+#  Same as figure above but zoomed in
+whale_seg <- data.frame(x1=1.22, y1=0, x2 = 1.35, y2 = 0)
 
-#  Figure of all simulated locations/paths and ship
-sim_step_crw <- ggplot() + 
-                            geom_path(data = df_XY, alpha= 0.05, aes(x = X, y = Y, group = walk_num), colour = "gray47", size = 1) +
-                            #geom_path(data = df_XY2, aes(x = X, y = Y, group = walk_num)) +
-                            xlab("X (km)") +
-                            xlim(c(-7, 3)) +
-                            ylab("Y (km)") +
-                            ylim(c(5, -5)) +
-                            theme_bw() +
-                            theme(panel.grid.minor = element_blank(), axis.text = element_text(size = rel(2)), 
-                            axis.title = element_text(size = rel(2))) +
-                            geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1.5, 
-                            data = ship_line, arrow = arrow(length = unit(0.15, "inches"), type = "closed")) +
-                            geom_text(data = ship_loc, aes(x, y, label=label), family="OpenSansEmoji", size=12, colour = "darkred") +
-                            geom_text(data = whale_loc, aes(x, y, label=label), family="OpenSansEmoji", size=15, colour="darkblue")
-sim_step_crw 
+one_move_sim_pt_z <- ggplot() + 
+                                        geom_point(data = df_XY_pt, alpha= 0.1, aes(x = X, y = Y, group = walk_num), colour = "grey50", fill = "grey50", size = 2) +
+                                        xlab("X (km)") +
+                                        xlim(c(-2, 2)) +
+                                        ylab("Y (km)") +
+                                        ylim(c(2, -2)) +
+                                        theme_bw() +
+                                        theme(panel.grid.minor = element_blank(), axis.text = element_text(size = rel(2)), 
+                                        axis.title = element_text(size = rel(2))) +
+                                        geom_point(data = whale_loc, aes(x, y), size=3, colour="black") +
+                                        geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1, 
+                                                                          data = whale_seg, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
+                                        annotate("point", x = 0, y = 0, colour ="black", size = 280, shape=1) 
+                                        #geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), colour = "black", size = 1.5, 
+                                                                          #data = ship_line, arrow = arrow(length = unit(0.15, "inches"), type = "closed")) +
+                                        #geom_text(data = ship_loc1, aes(x, y, label=label), family="OpenSansEmoji", size=12, colour = "#dc143c") +
+                                        #geom_text(data = ship_loc2, aes(x, y, label=label), family="OpenSansEmoji", size=12, colour = "#dc143c", alpha = 0.2) 
+                                        
+one_move_sim_pt_z
 
 ################################################################################
 

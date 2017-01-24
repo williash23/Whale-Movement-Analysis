@@ -14,9 +14,9 @@ model{
     v[2] ~ dgamma(0.01, 0.01) # Movement state 2
 
     #  Scale parameter for step length distribution
-    lambda[2] <- lambda[1] + eps # Movement state 1
-    lambda[1] ~ dgamma(0.01, 0.01) # Movement state 2
-    eps ~ dnorm(0, 0.001)T(0,) # Non-negative variate to add to lambda[2]
+    lambda[2] <- lambda[1] + eps # Movement state 
+    lambda[1] ~ dgamma(0.01, 0.01) # Movement state 
+    eps ~ dnorm(0.01, 0.1)T(0, 5) # Non-negative variate to add to lambda[1]
 
     #  Mean cosine of turns
     rho[1] ~ dunif(0, 1) # Movement state 1

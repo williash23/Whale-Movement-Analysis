@@ -16,7 +16,7 @@ model{
     #  Scale parameter for step length distribution
     lambda[2] <- lambda[1] + eps # Movement state 
     lambda[1] ~ dgamma(0.01, 0.01) # Movement state 
-    eps ~ dnorm(0.01, 0.1)T(0,) # Non-negative variate to add to lambda[1]
+    eps ~ dnorm(0.01, 0.1)T(0, 5) # Non-negative variate to add to lambda[1]
 
     #  Mean cosine of turns
     rho[1] ~ dunif(0.01, 1) # Movement state 1
@@ -25,15 +25,16 @@ model{
     #  Mean direction of turns
     mu[1] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 1
     mu[2] ~ dunif(-3.14159265359, 3.14159265359) # Movement state 2
+    
 
     #  Intercept for being in state 1 probability
     beta0 ~ dnorm(0.01, 0.01)T(-5, 5)
 
     # Random change to the intercept for each individual for state 1
-    tau_alpha ~ dunif(0.01,50)
-    for (ind in 1:nind){
-      alpha[ind] ~ dnorm(0, tau_alpha)T(-5, 5)
-        }
+    #tau_alpha ~ dunif(0.01,50)
+    #for (ind in 1:nind){
+      #alpha[ind] ~ dnorm(0, tau_alpha)T(-5, 5)
+        #}
 
   # Likelihood
     #  Generate probability of being in state 1 or 2
@@ -45,16 +46,18 @@ model{
         state[ind, t, 2] <- 1 - state[ind, t, 1]
         idx[ind, t] ~ dcat(state[ind, t,]) # Latent state and parameter index
 
+
         #  Steps
         l[ind, t] ~ dweib(v[idx[ind, t]], lambda[idx[ind, t]]) 
+        #l[ind, t] ~ dweib(v[idx[ind, 1]], lambda[idx[ind, 1]]) 
         
         #  Turns
         # Uses the “ones” trick to sample from the Wrapped Cauchy distribution
         ones[ind, t] ~ dbern(wC[ind, t])
         # PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure that wC[t] will be less than one
         wC[ind, t] <- (1/(2*3.14159265359)*(1-rho[idx[ind, t]]*rho[idx[ind, t]])/(1+rho[idx[ind, t]]*rho[idx[ind, t]] - 2*rho[idx[ind, t]]*cos(theta[ind, t] - mu[idx[ind, t]])))/500
+        #wC[ind, t] <- (1/(2*3.14159265359)*(1-rho[idx[ind, 1]]*rho[idx[ind, 1]])/(1+rho[idx[ind, 1]]*rho[idx[ind, 1]] - 2*rho[idx[ind, 1]]*cos(theta[ind, 1] - mu[idx[ind, 1]])))/500
         theta[ind, t] ~ dunif(-3.14159265359, 3.14159265359)
       }
     }
-mean.alpha <- mean(alpha)
   }
