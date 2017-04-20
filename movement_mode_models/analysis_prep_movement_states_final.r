@@ -247,8 +247,12 @@ theta_front <- obs_1_front$turn
 
 
 
-
-
+#  Histogram for number of cues per individual
+tmp5 <- tmp4 %>%
+              group_by(same_whale_ID) %>%
+              mutate(n_cue = n()) %>%
+              ungroup() %>%
+              as.data.frame()
 
 
 
