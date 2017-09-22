@@ -1,0 +1,9 @@
+#
+# Output data
+*.Rda
+*.pdf
+*.csv
+*.html
+
+# System files
+*.DS_Store
