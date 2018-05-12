@@ -12,7 +12,7 @@ library(aspace)
 ################################################################################
 
 #  Load data
-dat_raw <- read.csv("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/data/Whales_0615_locations_clean.csv")
+dat_raw <- read.csv("C:/Users/saraw/Desktop/Whale/data/Whales_0615_general_clean.csv")
 
 #  Data clean up and manipulation
 tmp1 <- dat_raw %>%
@@ -22,6 +22,7 @@ tmp1 <- dat_raw %>%
             group_by(same_whale_ID) %>%
             filter(n() > 1) %>%
             ungroup() %>%
+			#dplyr::filter(same_whale_ID != "2015-08-21-K-034") %>%
             as.data.frame()
 tmp2 <- arrange(tmp1, same_whale_ID, ob_order_time)
 tmp3 <- tmp2 %>%
@@ -55,6 +56,17 @@ t4 <- t3 %>%
          mutate(time_diff_sec = time_diff*3600) %>%
          ungroup() %>%
          as.data.frame()
+		 
+tot_time_obs <- t4 %>%
+	group_by(same_whale_ID) %>%
+	mutate(n_obs = max(ob_order_time)) %>%
+	mutate(surface_event_time = sum( time_diff_sec, na.rm = TRUE)) %>%
+	slice(1) %>%
+	as.data.frame(.)
+tot_time_obs95 <- quantile(tot_time_obs$surface_event_time, probs = c(0.95))
+tot_time_obs90 <- quantile(tot_time_obs$surface_event_time, probs = c(0.90))
+tot_time_obs75 <- quantile(tot_time_obs$surface_event_time, probs = c(0.75))
+	
 ################################################################################
 
 #  Create trajectory (ltraj) object for steps and turns
