@@ -11,25 +11,29 @@ library(reshape)
 library(ggplot2)
 library(dplyr)
 library(rjags)
+library(NISTunits)
 #library(emojifont)
+
+
 
 ################################################################################
 # Load output from MCMC posterior distribtuion iterations (JAGS object)
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/double_fit.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/double_cov_fit.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_near.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_far.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_side.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_front.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_dive.RData")
-load("C:/Users/sara.williams/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_surf.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/double_fit.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/double_cov_fit.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_near.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_far.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_side.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_front.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_dive.RData")
+load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/model_output/single_fit_surf.RData")
 ################################################################################
 
 # NOTE: due to differences in formulation of Weibull distribution between JAGS and R:
 ###### scale = (1/lambda)^(1/v) ######
-niter <- 11000
-nsamp <- 8000
+niter <- 10000
+nsamp <- 1000
+#nsamp <- 8000
 
 rwcauchy <- function(n, mu = 0, rho = 0) {
   u = runif(n)
@@ -78,35 +82,96 @@ post_sims <- as.data.frame(cbind(steps, turns))
 post_sims$turns[post_sims$turns>pi]=post_sims$turns[post_sims$turns>pi]-2*pi
 
 post_sims_plot <- post_sims %>% 
-                              mutate(iter_num = 1:nrow(post_sims))
+	mutate(abs_turns = abs(turns)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns)) %>%
+	mutate(iter_num = 1:nrow(post_sims))
+turns_cat <- post_sims_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+		
+		
+
+post_sims <- as.data.frame(cbind(steps, turns))
+post_sims$turns[post_sims$turns>pi]=post_sims$turns[post_sims$turns>pi]-2*pi
+
+post_sims_plot <- post_sims %>% 
+	mutate(abs_turns = abs(turns)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns)) %>%
+	mutate(iter_num = 1:nrow(post_sims))
+turns_cat <- post_sims_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+		
+		
+
+
 ################################################################################      
 
 #  Density plots
 steps_all <- ggplot(post_sims_plot, aes(steps)) + 
-                    geom_density(size = 1.25) +
-                    geom_vline(aes(xintercept=mean(steps)), color="black", linetype="dashed", size=1) +
+                    geom_density() +
+                    geom_vline(aes(xintercept=mean(steps)), color="black", linetype="dashed") +
                     xlab("\n Step length (km)") +
-                    ylab("Frequency \n") +
-                    xlim(c(0, 5)) +
-                    #ylim(c(0, 2.5)) +
+                    ylab("Density \n") +
+                    xlim(c(0, 3)) +
+                    ylim(c(0, 2)) +
                     theme_bw() +
-                    theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                    axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2)))
+                    theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank()) #, 
+                   # axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2)))
                     #theme(legend.position="none")
 steps_all
 
-turns_all <- ggplot(post_sims_plot, aes(turns)) + 
-                    geom_density(size = 1.25) +
-                    geom_vline(aes(xintercept=mean(turns)), color="black", linetype="dashed", size=1) +
-                    xlab("\n Turn angle (km)") +
-                    ylab("Frequency \n") +
-                    #xlim(c(0, 5)) +
-                    #ylim(c(0, 2.5)) +
-                    theme_bw() +
-                    theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                    axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) 
-                    #theme(legend.position="none")
+turns_all <- ggplot(post_sims_plot, aes(turns_deg)) + 
+	geom_histogram(colour = "grey30", fill = "grey30", alpha = 0.25) +
+	geom_density(alpha = 0.1) +
+	geom_vline(aes(xintercept=mean(turns_deg)), color="black", linetype="dashed") +
+	xlab("\n Turn angle (deg)") +
+	ylab("Density \n") +
+	xlim(c(-180, 180)) +
+	#ylim(c(0, 2.5)) +
+	theme_bw() +
+	theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank()) #, 
+	#axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) 
+	#theme(legend.position="none")
 turns_all
+
+
+
+
+par(yaxs="i",las=1)
+hist(post_sims_plot$steps, prob=TRUE, col="grey80", border="white", xlab="Step length (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_plot$steps),col="black",lwd=2)
+abline(v = mean(post_sims_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turn angle (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), xaxt='n', main=NULL)
+axis(side = 1, at = c(-180, -135, -90, -45, 0, 45, 90, 135, 180))
+#axis(side = 1, at = c(0, 45, 90, 135, 180))
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_plot$turns_deg),col="black",lwd=2)
+#abline(v = mean(post_sims_plot$turns_deg), lty = 2, lwd = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+
+	
+	
+par(yaxs="i",las=1)
+hist(post_sims_su_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), xaxt='n', main=NULL)
+axis(side = 1, at = c(-180, -135, -90, -45, 0, 45, 90, 135, 180))
+box(bty="l")
+lines(density(post_sims_su_plot$turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_su_plot$turns_deg), lty = 2, lwd = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
 ################################################################################      
 
 
@@ -152,9 +217,9 @@ for(i in 1:nrow(sims_all_d2)){
   }
 
 post_sims_all_d1 <- as.data.frame(cbind(steps_all_d1, turns_all_d1))
-post_sims_all_d1$turns_all_d1[post_sims_all_d1$turns_all_d1>pi]=post_sims_all_d1$turns_all_d1[post_sims_all_d1$turns_all_d1>pi]-2*pi
+#post_sims_all_d1$turns_all_d1[post_sims_all_d1$turns_all_d1>pi]=post_sims_all_d1$turns_all_d1[post_sims_all_d1$turns_all_d1>pi]-2*pi
 post_sims_all_d2 <- as.data.frame(cbind(steps_all_d2, turns_all_d2))
-post_sims_all_d2$turns_all_d2[post_sims_all_d2$turns_all_d2>pi]=post_sims_all_d2$turns_all_d2[post_sims_all_d2$turns_all_d2>pi]-2*pi
+#post_sims_all_d2$turns_all_d2[post_sims_all_d2$turns_all_d2>pi]=post_sims_all_d2$turns_all_d2[post_sims_all_d2$turns_all_d2>pi]-2*pi
 
 post_sims_all_d1_plot <- post_sims_all_d1 %>% 
                                           mutate(iter_num = 1:nrow(post_sims_all_d1)) %>%
@@ -231,7 +296,7 @@ sims_3_all <- chain_3_all[keep_3, c(2, 3, 4, 1)]
 
 sims_d <- rbind(sims_1_d, sims_2_d, sims_3_d)
 sims_su <- rbind(sims_1_su, sims_2_su, sims_3_su)
-sims_all <- rbind(sims_1_all, sims_2_all, sims_3_all)
+# sims_all <- rbind(sims_1_all, sims_2_all, sims_3_all)
 
 steps_d <- numeric(length = nrow(sims_d))
 turns_d <- numeric(length = nrow(sims_d))
@@ -250,35 +315,91 @@ for(i in 1:nrow(sims_su)){
   turns_su[i] <- rwcauchy(1, sims_su[i,1], sims_su[i,2])
   #rwrappedcauchy(1, sims_su[i,1],  sims_su[i,2])
   }
-for(i in 1:nrow(sims_all)){
-  steps_all[i] <- rweibull(1, sims_all[i,3], (1/sims_all[i,4])^(1/sims_all[i,3]))
-  turns_all[i] <- rwcauchy(1, sims_all[i,1], sims_all[i,2])
-  #rwrappedcauchy(1, sims_all[i,1],  sims_all[i,2])
-  }
+# for(i in 1:nrow(sims_all)){
+  # steps_all[i] <- rweibull(1, sims_all[i,3], (1/sims_all[i,4])^(1/sims_all[i,3]))
+  # turns_all[i] <- rwcauchy(1, sims_all[i,1], sims_all[i,2])
+  # #rwrappedcauchy(1, sims_all[i,1],  sims_all[i,2])
+  # }
 
 post_sims_d <- as.data.frame(cbind(steps_d, turns_d))
 post_sims_d$turns_d[post_sims_d$turns_d>pi]=post_sims_d$turns_d[post_sims_d$turns_d>pi]-2*pi
 post_sims_su <- as.data.frame(cbind(steps_su, turns_su))
 post_sims_su$turns_su[post_sims_su$turns_su>pi]=post_sims_su$turns_su[post_sims_su$turns_su>pi]-2*pi
-post_sims_all <- as.data.frame(cbind(steps_all, turns_all))
-post_sims_all$turns_all[post_sims_all$turns_all>pi]=post_sims_all$turns_all[post_sims_all$turns_all>pi]-2*pi
+# post_sims_all <- as.data.frame(cbind(steps_all, turns_all))
+# post_sims_all$turns_all[post_sims_all$turns_all>pi]=post_sims_all$turns_all[post_sims_all$turns_all>pi]-2*pi
 
 post_sims_d_plot <- post_sims_d %>% 
-                                  mutate(iter_num = 1:nrow(post_sims_d)) %>%
-                                  mutate(type = "Deep dive data")  %>%
-                                  dplyr::rename(steps = steps_d, turns = turns_d)
+	mutate(abs_turns = abs(turns_d)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns_d)) %>%
+	mutate(iter_num = 1:nrow(post_sims_d)) %>%
+	mutate(type = "Long (time between surfacings > 120s")  %>%
+	dplyr::rename(steps = steps_d, turns = turns_d)
+dive_turns_cat <- post_sims_d_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+	
 post_sims_su_plot <- post_sims_su %>% 
-                                   mutate(iter_num = 1:nrow(post_sims_su)) %>%
-                                   mutate(type = "Surface interval data") %>%
-                                   dplyr::rename(steps = steps_su, turns = turns_su)
-post_sims_all_plot <- post_sims_all %>% 
-                                    mutate(iter_num = 1:nrow(post_sims_all)) %>%
-                                    mutate(type = "All data") %>%
-                                    dplyr::rename(steps = steps_all, turns = turns_all)
-                                    
-all_surf_dive <- rbind(post_sims_d_plot, post_sims_su_plot, post_sims_all_plot)
-all_surf_dive$type <- as.factor(all_surf_dive$type)
+	mutate(abs_turns = abs(turns_su)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns_su)) %>%
+   mutate(iter_num = 1:nrow(post_sims_su)) %>%
+   mutate(type = "Short (time between surfacings < 50s") %>%
+   dplyr::rename(steps = steps_su, turns = turns_su)
+ 
+surf_turns_cat <- post_sims_su_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+# post_sims_all_plot <- post_sims_all %>% 
+	# mutate(abs_turns = abs(turns)) %>%
+	# mutate(abs_turns_deg = NISTradianTOdeg(abs_turns)) %>%
+	# mutate(iter_num = 1:nrow(post_sims_all)) %>%
+	# mutate(type = "All data") %>%
+	# dplyr::rename(steps = steps_all, turns = turns_all)
+
+# all_surf_dive <- rbind(post_sims_d_plot, post_sims_su_plot, post_sims_all_plot)
+# all_surf_dive$type <- as.factor(all_surf_dive$type)
 ################################################################################      
+
+
+par(yaxs="i",las=1)
+hist(post_sims_d_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Step length (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_d_plot$steps),col="black",lwd=2)
+abline(v = mean(post_sims_d_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_d_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turn angle (deg)",
+	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_d_plot$abs_turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_d_plot$abs_turns_deg), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+
+
+par(yaxs="i",las=1)
+hist(post_sims_su_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_su_plot$steps),col="black",lwd=2)
+abline(v = mean(post_sims_su_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_su_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), breaks = 50, main=NULL)
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_su_plot$turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_su_plot$turns_deg), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+################################################################################      
+
 
 #  Density plots
 steps_all_surf_dive_plot <- ggplot(all_surf_dive, aes(steps, linetype = type)) + 
@@ -296,7 +417,7 @@ steps_all_surf_dive_plot
 
 turns_all_surf_dive_plot <- ggplot(all_surf_dive, aes(turns, linetype = type)) + 
                                              geom_density(size = 1.25) +
-                                             xlab("\n Turn angle (km)") +
+                                             xlab("\n Turn angle (deg)") +
                                              ylab("Frequency \n") +
                                              #xlim(c(0, 5)) +
                                              #ylim(c(0, 2.5)) +
@@ -360,27 +481,44 @@ for(i in 1:nrow(sims_f)){
   turns_f[i] <- rwcauchy(1, sims_f[i,1], sims_f[i,2])
   #rwrappedcauchy(1, sims_f[i,1],  sims_f[i,2])
   }
-for(i in 1:nrow(sims_all)){
-  steps_all[i] <- rweibull(1, sims_all[i,3], (1/sims_all[i,4])^(1/sims_all[i,3]))
-  turns_all[i] <- rwcauchy(1, sims_all[i,1], sims_all[i,2])
-  #rwrappedcauchy(1, sims_all[i,1],  sims_all[i,2])
-  }
+# for(i in 1:nrow(sims_all)){
+  # steps_all[i] <- rweibull(1, sims_all[i,3], (1/sims_all[i,4])^(1/sims_all[i,3]))
+  # turns_all[i] <- rwcauchy(1, sims_all[i,1], sims_all[i,2])
+  # #rwrappedcauchy(1, sims_all[i,1],  sims_all[i,2])
+  # }
 
 post_sims_n <- as.data.frame(cbind(steps_n, turns_n))
 post_sims_n$turns_n[post_sims_n$turns_n>pi]=post_sims_n$turns_n[post_sims_n$turns_n>pi]-2*pi
 post_sims_f <- as.data.frame(cbind(steps_f, turns_f))
 post_sims_f$turns_f[post_sims_f$turns_f>pi]=post_sims_f$turns_f[post_sims_f$turns_f>pi]-2*pi
-post_sims_all <- as.data.frame(cbind(steps_all, turns_all))
-post_sims_all$turns_all[post_sims_all$turns_all>pi]=post_sims_all$turns_all[post_sims_all$turns_all>pi]-2*pi
+#post_sims_all <- as.data.frame(cbind(steps_all, turns_all))
+#post_sims_all$turns_all[post_sims_all$turns_all>pi]=post_sims_all$turns_all[post_sims_all$turns_all>pi]-2*pi
 
 post_sims_n_plot <- post_sims_n %>% 
-                                  mutate(iter_num = 1:nrow(post_sims_n)) %>%
-                                  mutate(type = "Near data")  %>%
-                                  dplyr::rename(steps = steps_n, turns = turns_n)
+	mutate(abs_turns = abs(turns_n)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns_n)) %>%
+	mutate(iter_num = 1:nrow(post_sims_n)) %>%
+	mutate(type = "Near (< 1,000m)")  %>%
+	dplyr::rename(steps = steps_n, turns = turns_n)
+near_turns_cat <- post_sims_n_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+		
 post_sims_f_plot <- post_sims_f %>% 
-                                 mutate(iter_num = 1:nrow(post_sims_f)) %>%
-                                 mutate(type = "Far data") %>%
-                                 dplyr::rename(steps = steps_f, turns = turns_f)
+	mutate(abs_turns = abs(turns_f)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns_f)) %>%
+	mutate(iter_num = 1:nrow(post_sims_f)) %>%
+	mutate(type = "Far (> 3,000m)") %>%
+	dplyr::rename(steps = steps_f, turns = turns_f)
+far_turns_cat <- post_sims_f_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))	
+	
+	
 post_sims_all_plot <- post_sims_all %>% 
                                     mutate(iter_num = 1:nrow(post_sims_all)) %>%
                                     mutate(type = "All data") %>%
@@ -406,7 +544,7 @@ steps_all_near_far_plot
 
 turns_all_near_far_plot <- ggplot(all_near_far, aes(turns, linetype = type)) + 
                                              geom_density(size = 1.25) +
-                                             xlab("\n Turn angle (km)") +
+                                             xlab("\n Turn angle (deg)") +
                                              ylab("Frequency \n") +
                                              #xlim(c(0, 5)) +
                                              #ylim(c(0, 2.5)) +
@@ -418,47 +556,83 @@ turns_all_near_far_plot <- ggplot(all_near_far, aes(turns, linetype = type)) +
 turns_all_near_far_plot
 ################################################################################
 
+par(yaxs="i",las=1)
+hist(post_sims_n_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_n_plot$steps),col="black",lwd=2)
+abline(v = mean(post_sims_n_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_n_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_n_plot$abs_turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_n_plot$abs_turns_deg), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+
+
+par(yaxs="i",las=1)
+hist(post_sims_f_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_f_plot$steps),col="black",lwd=2)
+abline(v = mean(post_sims_f_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_f_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_f_plot$abs_turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_f_plot$abs_turns_deg), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+################################################################################      
+
 
 
 #  First observation at side of ship or at front of ship
 x_si <- single_fit_side
 x_fr <- single_fit_front
-x_all <- single_fit
+#x_all <- single_fit
 keep_1 <- sample(1:niter, nsamp, replace = F)
 keep_2 <- sample(1:niter, nsamp, replace = F)
-keep_3 <- sample(1:niter, nsamp, replace = )
+keep_3 <- sample(1:niter, nsamp, replace = F)
 
 chain_1_si <- x_si[[1]]
 sims_1_si <- chain_1_si[keep_1, c(2, 3, 4, 1)]
-chain_1_fr<- x_fr[[1]]
+chain_1_fr <- x_fr[[1]]
 sims_1_fr <- chain_1_fr[keep_1, c(2, 3, 4, 1)]
-chain_1_all<- x_all[[1]]
-sims_1_all <- chain_1_all[keep_1, c(2, 3, 4, 1)]
+#chain_1_all <- x_all[[1]]
+#sims_1_all <- chain_1_all[keep_1, c(2, 3, 4, 1)]
 
 chain_2_si <- x_si[[2]]
 sims_2_si <- chain_2_si[keep_2, c(2, 3, 4, 1)]
 chain_2_fr <- x_fr[[2]]
 sims_2_fr <- chain_2_fr[keep_2, c(2, 3, 4, 1)]
-chain_2_all<- x_all[[2]]
-sims_2_all <- chain_2_all[keep_2, c(2, 3, 4, 1)]
+#chain_2_all<- x_all[[2]]
+#sims_2_all <- chain_2_all[keep_2, c(2, 3, 4, 1)]
 
 chain_3_si <- x_si[[3]]
 sims_3_si <- chain_3_si[keep_3, c(2, 3, 4, 1)]
 chain_3_fr <- x_fr[[3]]
 sims_3_fr <- chain_3_fr[keep_3, c(2, 3, 4, 1)]
-chain_3_all<- x_all[[3]]
-sims_3_all <- chain_3_all[keep_3, c(2, 3, 4, 1)]
+#chain_3_all <- x_all[[3]]
+#sims_3_all <- chain_3_all[keep_3, c(2, 3, 4, 1)]
 
 sims_si <- rbind(sims_1_si, sims_2_si, sims_3_si)
 sims_fr <- rbind(sims_1_fr, sims_2_fr, sims_3_fr)
-sims_all <- rbind(sims_1_all, sims_2_all, sims_3_all)
+#sims_all <- rbind(sims_1_all, sims_2_all, sims_3_all)
 
 steps_si <- numeric(length = nrow(sims_si))
 turns_si <- numeric(length = nrow(sims_si))
 steps_fr <- numeric(length = nrow(sims_fr))
 turns_fr <- numeric(length = nrow(sims_fr))
-steps_all <- numeric(length = nrow(sims_all))
-turns_all <- numeric(length = nrow(sims_all))
+#steps_all <- numeric(length = nrow(sims_all))
+#turns_all <- numeric(length = nrow(sims_all))
 
 for(i in 1:nrow(sims_si)){
   steps_si[i] <- rweibull(1, sims_si[i,3], (1/sims_si[i,4])^(1/sims_si[i,3]))
@@ -470,33 +644,49 @@ for(i in 1:nrow(sims_fr)){
   turns_fr[i] <- rwcauchy(1, sims_fr[i,1], sims_fr[i,2])
   #rwrappedcauchy(1, sims_fr[i,1],  sims_fr[i,2])
   }
-for(i in 1:nrow(sims_all)){
-  steps_all[i] <- rweibull(1, sims_all[i,3], (1/sims_all[i,4])^(1/sims_all[i,3]))
-  turns_all[i] <- rwcauchy(1, sims_all[i,1], sims_all[i,2])
-  #rwrappedcauchy(1, sims_all[i,1],  sims_all[i,2])
-  }
+# for(i in 1:nrow(sims_all)){
+  # steps_all[i] <- rweibull(1, sims_all[i,3], (1/sims_all[i,4])^(1/sims_all[i,3]))
+  # turns_all[i] <- rwcauchy(1, sims_all[i,1], sims_all[i,2])
+  # #rwrappedcauchy(1, sims_all[i,1],  sims_all[i,2])
+  # }
 
 post_sims_si <- as.data.frame(cbind(steps_si, turns_si))
 post_sims_si$turns_si[post_sims_si$turns_si>pi]=post_sims_si$turns_si[post_sims_si$turns_si>pi]-2*pi
 post_sims_fr <- as.data.frame(cbind(steps_fr, turns_fr))
 post_sims_fr$turns_fr[post_sims_fr$turns_fr>pi]=post_sims_fr$turns_fr[post_sims_fr$turns_fr>pi]-2*pi
-post_sims_all <- as.data.frame(cbind(steps_all, turns_all))
-post_sims_all$turns_all[post_sims_all$turns_all>pi]=post_sims_all$turns_all[post_sims_all$turns_all>pi]-2*pi
+# post_sims_all <- as.data.frame(cbind(steps_all, turns_all))
+# post_sims_all$turns_all[post_sims_all$turns_all>pi]=post_sims_all$turns_all[post_sims_all$turns_all>pi]-2*pi
 
 post_sims_si_plot <- post_sims_si %>% 
-                                   mutate(iter_num = 1:nrow(post_sims_si)) %>%
-                                   mutate(type = "Side approach data")  %>%
-                                   dplyr::rename(steps = steps_si, turns = turns_si)
+	mutate(abs_turns = abs(turns_si)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns_si)) %>%
+	mutate(iter_num = 1:nrow(post_sims_si)) %>%
+	mutate(type = "Abeam of ship")  %>%
+	dplyr::rename(steps = steps_si, turns = turns_si) 
+side_turns_cat <- post_sims_si_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+	
 post_sims_fr_plot <- post_sims_fr %>% 
-                                   mutate(iter_num = 1:nrow(post_sims_fr)) %>%
-                                   mutate(type = "Front approach data") %>%
-                                   dplyr::rename(steps = steps_fr, turns = turns_fr)
-post_sims_all_plot <- post_sims_all %>% 
-                                    mutate(iter_num = 1:nrow(post_sims_all)) %>%
-                                    mutate(type = "All data") %>%
-                                    dplyr::rename(steps = steps_all, turns = turns_all)
+	mutate(abs_turns = abs(turns_fr)) %>%
+	mutate(turns_deg = NISTradianTOdeg(turns_fr)) %>%
+	mutate(iter_num = 1:nrow(post_sims_fr)) %>%
+	mutate(type = "In front of ship") %>%
+	dplyr::rename(steps = steps_fr, turns = turns_fr) 
+front_turns_cat <- post_sims_fr_plot %>%
+	dplyr::select(abs_turns, steps) %>%
+	mutate(turn_cat = ifelse(abs_turns <.786, 1,
+		ifelse(abs_turns>=.786 & abs_turns < 1.57, 2,
+		ifelse(abs_turns >= 1.57 & abs_turns < 2.355, 3, 4))))
+	
+# post_sims_all_plot <- post_sims_all %>% 
+                                   # mutate(iter_num = 1:nrow(post_sims_all)) %>%
+                                   # mutate(type = "All data") %>%
+                                   # dplyr::rename(steps = steps_all, turns = turns_all)
                                     
-all_side_front <- rbind(post_sims_si_plot, post_sims_fr_plot, post_sims_all_plot)
+all_side_front <- rbind(post_sims_si_plot, post_sims_fr_plot) #, post_sims_all_plot)
 all_side_front$type <- as.factor(all_side_front$type)
 ################################################################################      
 
@@ -514,9 +704,10 @@ steps_all_side_front_plot <- ggplot(all_side_front, aes(steps, linetype = type))
                                                #theme(legend.position="none")
 steps_all_side_front_plot
 
-turns_all_side_front_plot <- ggplot(all_side_front, aes(turns, linetype = type)) + 
+turns_all_side_front_plot <- ggplot(all_side_front, aes(abs_turn, linetype = type)) + 
+											   #geom_freq() +
                                                geom_density(size = 1.25) +
-                                               xlab("\n Turn angle (km)") +
+                                               xlab("\n Turn angle (deg)") +
                                                ylab("Frequency \n") +
                                                #xlim(c(0, 5)) +
                                                #ylim(c(0, 2.5)) +
@@ -527,6 +718,51 @@ turns_all_side_front_plot <- ggplot(all_side_front, aes(turns, linetype = type))
                                                #theme(legend.position="none")
 turns_all_side_front_plot
 ################################################################################
+
+turns_side_1k <- cbind(NISTradianTOdeg(abs(theta_side_1k)), rep(0.00008, length(theta_side_1k)))
+turns_front_1k <- cbind(NISTradianTOdeg(abs(theta_front_1k)), rep(0.0001, length(theta_front_1k)))
+steps_side_1k <- cbind(l_side_1k, rep(0.01, length(l_side_1k)))
+steps_front_1k <- cbind(l_front_1k, rep(0.01, length(l_front_1k)))
+
+par(yaxs="i",las=1)
+hist(post_sims_si_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_si_plot$steps),col="black",lwd=2)
+points(steps_side_1k, col = "red", pch="|")
+abline(v = mean(post_sims_si_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_si_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_si_plot$abs_turns_deg),col="black",lwd=2)
+points(turns_side_1k, col = "red", pch="|")
+abline(v = mean(post_sims_si_plot$abs_turns_deg), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+
+
+par(yaxs="i",las=1)
+hist(post_sims_fr_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
+	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+box(bty="l")
+lines(density(post_sims_fr_plot$steps),col="black",lwd=2)
+points(steps_front_1k, col = "red", pch="|")
+abline(v = mean(post_sims_fr_plot$steps), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+	
+par(yaxs="i",las=1)
+hist(post_sims_fr_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+#main="Distribution of Respirable Particle Concentrations")
+box(bty="l")
+lines(density(post_sims_fr_plot$abs_turns_deg),col="black",lwd=2)
+points(turns_front_1k, col = "red", pch="|")
+abline(v = mean(post_sims_fr_plot$abs_turns_deg), lty = 2)
+grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
+################################################################################      
 
 
 

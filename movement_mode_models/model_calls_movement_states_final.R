@@ -267,7 +267,7 @@ single_fit_side <- coda.samples(out_single_side,
 #  Calculate Rhat
 single_side_rhat <- gelman.diag(single_fit_side, multivariate = F)[[1]]
 #  Calcualte DIC
-single_side_dic <- dic.samples(out_single, n.iter = 1000, thin = 1, type = "pD")
+single_side_dic <- dic.samples(out_single_side, n.iter = 1000, thin = 1, type = "pD")
 #  Look at simple MCMC plots
 mcmcplot(single_fit_side)
 #  Look at summary output
@@ -309,12 +309,100 @@ single_fit_front <- coda.samples(out_single_front,
 #  Calculate Rhat
 single_front_rhat <- gelman.diag(single_fit_front, multivariate = F)[[1]]
 #  Calcualte DIC
-single_front_dic <- dic.samples(out_single, n.iter = 1000, thin = 1, type = "pD")
+single_front_dic <- dic.samples(out_single_front, n.iter = 1000, thin = 1, type = "pD")
 #  Look at simple MCMC plots
 mcmcplot(single_fit_front)
 #  Look at summary output
 summary(single_fit_front)
 ################################################################################
+
+
+
+
+
+#  Run "single side" model AND within 1k
+#   Bundle data
+jags.dat <- list(npts = npts_1_side_1k, l = l_side_1k, theta = theta_side_1k)
+ 
+#   Inits function
+inits <- function(){list(v = runif(1, 0.01,  5), 
+                                      lambda = runif(1, 0.01, 5), 
+                                      rho = runif(1, 0.01, 1), 
+                                      mu = runif(1, -3.14159265359, 3.14159265359))
+                                      }
+
+#   Parameters to monitor
+params <- c("v","lambda", "mu", "rho")
+
+#  Initialize model and go through adaptation 
+out_single_side_1k <- jags.model(data = jags.dat,
+                                                  file = "C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/models/single.txt", 
+                                                  inits = inits, 
+                                                  n.chains = nc, 
+                                                  n.adapt = na)
+
+#  Burnin
+update(out_single_side_1k, n.iter = nb)
+
+#  Sample posterior
+single_fit_side_1k <- coda.samples(out_single_side_1k,
+                                                    variable.names= params, 
+                                                    n.iter = ni, 
+                                                    thin = nt)
+
+#  Calculate Rhat
+single_side_1k_rhat <- gelman.diag(single_fit_side_1k, multivariate = F)[[1]]
+#  Calcualte DIC
+single_side_1k_dic <- dic.samples(out_single_side_1k, n.iter = 1000, thin = 1, type = "pD")
+#  Look at simple MCMC plots
+mcmcplot(single_fit_side_1k)
+#  Look at summary output
+summary(single_fit_side_1k)
+################################################################################
+
+
+
+#  Run "single front" model AND within 1k
+#   Bundle data
+jags.dat <- list(npts = npts_1_front_1k, l = l_front_1k, theta = theta_front_1k)
+ 
+#   Inits function
+inits <- function(){list(v = runif(1, 0.01,  5), 
+                                      lambda = runif(1, 0.01, 5), 
+                                      rho = runif(1, 0.01, 1), 
+                                      mu = runif(1, -3.14159265359, 3.14159265359))
+                                      }
+
+#   Parameters to monitor
+params <- c("v","lambda", "mu", "rho")
+
+#  Initialize model and go through adaptation 
+out_single_front_1k <- jags.model(data = jags.dat,
+                                                   file = "C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/models/single.txt", 
+                                                   inits = inits, 
+                                                   n.chains = nc, 
+                                                   n.adapt = na)
+
+#  Burnin
+update(out_single_front_1k, n.iter = nb)
+
+#  Sample posterior
+single_fit_front_1k <- coda.samples(out_single_front_1k,
+                                                     variable.names= params, 
+                                                     n.iter = ni, 
+                                                     thin = nt)
+
+#  Calculate Rhat
+single_front_1k_rhat <- gelman.diag(single_fit_front_1k, multivariate = F)[[1]]
+#  Calcualte DIC
+single_front_1k_dic <- dic.samples(out_single_front_1k, n.iter = 1000, thin = 1, type = "pD")
+#  Look at simple MCMC plots
+mcmcplot(single_fit_front_1k)
+#  Look at summary output
+summary(single_fit_front_1k)
+################################################################################
+
+
 
 
 

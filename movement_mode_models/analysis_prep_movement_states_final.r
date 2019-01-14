@@ -130,6 +130,26 @@ front_ids <- mod_dat %>%
                     ungroup() %>%
                     as.data.frame(.)
 front <- semi_join(mod_dat, front_ids, by = c("same_whale_ID"))
+
+
+#  Relative bearing (approach) at first sighting AND first sighting within 1k
+#   Side approach( greater than +/- 40 deg relative to bow), front approach (less than +/- 20)
+side_1k_ids <- near %>%
+                    group_by(same_whale_ID) %>%
+                    slice(1) %>%
+                    filter(ship_whale_bearing < -40 | ship_whale_bearing > 40) %>%
+					#filter(ship_whale_dist < 1001) %>%
+                    ungroup() %>%
+                    as.data.frame(.)
+side_1k <- semi_join(mod_dat, side_1k_ids, by = c("same_whale_ID"))
+front_1k_ids <- near %>%
+                    group_by(same_whale_ID) %>%
+                    slice(1) %>%
+                    filter(ship_whale_bearing < 20 | ship_whale_bearing < -20) %>%
+					#filter(ship_whale_dist < 1001) %>%
+                    ungroup() %>%
+                    as.data.frame(.)
+front_1k <- semi_join(mod_dat, front_1k_ids, by = c("same_whale_ID"))
 ################################################################################
 
 #  Generate data for use in model runs
@@ -254,6 +274,38 @@ nocc_1_front <- obs_1_front %>%
                            .$nocc
 l_front <- (obs_1_front$step)/1000
 theta_front <- obs_1_front$turn
+
+
+
+#   First sighting approaching from side AND first sighting within 1k
+obs_1_side_1k <- side_1k %>%
+                        dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+                        arrange(ID_new) %>%
+                        as.data.frame()
+npts_1_side_1k <- nrow(obs_1_side_1k)
+ind_1_side_1k <- obs_1_side_1k$ID_new
+nind_1_side_1k <- length(unique(obs_1_side_1k$ID_new))
+nocc_1_side_1k <- obs_1_side_1k %>%
+                          group_by(ID_new) %>%
+                          summarise(nocc = n()) %>%
+                          .$nocc
+l_side_1k <- (obs_1_side_1k$step)/1000
+theta_side_1k <- obs_1_side_1k$turn
+
+#   First sighting approaching from front
+obs_1_front_1k <- front_1k %>%
+                         dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+                         arrange(ID_new) %>%
+                         as.data.frame()
+npts_1_front_1k <- nrow(obs_1_front_1k)
+ind_1_front_1k <- obs_1_front_1k$ID_new
+nind_1_front_1k <- length(unique(obs_1_front_1k$ID_new))
+nocc_1_front_1k <- obs_1_front_1k %>%
+                           group_by(ID_new) %>%
+                           summarise(nocc = n()) %>%
+                           .$nocc
+l_front_1k <- (obs_1_front_1k$step)/1000
+theta_front_1k <- obs_1_front_1k$turn
 ################################################################################
 
 
