@@ -16,19 +16,19 @@ dat_raw <- read.csv("C:/Users/saraw/Desktop/Whale/data/Whales_0615_general_clean
 
 #  Data clean up and manipulation
 tmp1 <- dat_raw %>%
-            filter(year > 2009) %>% ## per info from Karin, PTB (bearing) was kind of weird before 2010
-            filter(ship_whale_dist < 8000) %>%
-            filter(count == 1) %>%            
-            group_by(same_whale_ID) %>%
-            filter(n() > 1) %>%
-            ungroup() %>%
-			#dplyr::filter(same_whale_ID != "2015-08-21-K-034") %>%
-            as.data.frame()
+	filter(year > 2009) %>% ## per info from Karin, PTB (bearing) was kind of weird before 2010
+	#filter(ship_whale_dist < 8000) %>%
+	filter(count == 1) %>%            
+	group_by(same_whale_ID) %>%
+	filter(n() > 1) %>%
+	ungroup() %>%
+	#dplyr::filter(same_whale_ID != "2015-08-21-K-034") %>%
+	as.data.frame()
 tmp2 <- arrange(tmp1, same_whale_ID, ob_order_time)
 tmp3 <- tmp2 %>%
-              dplyr::select(same_whale_ID, X_whale_UTM, Y_whale_UTM, ship_whale_dist, 
-                                     ship_whale_bearing, whale_behavior, ob_order_time, TimeTxt, same_whale_ID) %>%
-              dplyr::rename(X = X_whale_UTM, Y = Y_whale_UTM)
+	dplyr::select(same_whale_ID, X_whale_UTM, Y_whale_UTM, ship_whale_dist, 
+		ship_whale_bearing, whale_behavior, ob_order_time, TimeTxt, same_whale_ID) %>%
+	dplyr::rename(X = X_whale_UTM, Y = Y_whale_UTM)
 
 #  Add time difference between successive observations to observations.
 t1 <- tmp3
@@ -48,19 +48,19 @@ t3$V2 <- as.numeric(as.integer(as.character(t3$V2)))
 t3$V3 <- as.numeric(as.integer(as.character(t3$V3)))
 #   time_diff is the difference in time between a sighting and the sighting before it
 t4 <- t3 %>%
-         dplyr::rename (hr = V1, min = V2, sec = V3) %>%
-         dplyr::mutate(sec_frac = sec/60, min_sec = sec_frac+min) %>%
-         dplyr::mutate(min_frac = min_sec/60, time_dec = hr+min_frac) %>%
-         group_by(same_whale_ID) %>%
-         mutate(time_diff = lead(time_dec) - time_dec) %>%
-         mutate(time_diff_sec = time_diff*3600) %>%
-         ungroup() %>%
-         as.data.frame()
+	dplyr::rename (hr = V1, min = V2, sec = V3) %>%
+	dplyr::mutate(sec_frac = sec/60, min_sec = sec_frac+min) %>%
+	dplyr::mutate(min_frac = min_sec/60, time_dec = hr+min_frac) %>%
+	group_by(same_whale_ID) %>%
+	mutate(time_diff = lead(time_dec) - time_dec) %>%
+	mutate(time_diff_sec = time_diff*3600) %>%
+	ungroup() %>%
+	as.data.frame()
 		 
 tot_time_obs <- t4 %>%
 	group_by(same_whale_ID) %>%
 	mutate(n_obs = max(ob_order_time)) %>%
-	mutate(surface_event_time = sum( time_diff_sec, na.rm = TRUE)) %>%
+	mutate(surface_event_time = sum(time_diff_sec, na.rm = TRUE)) %>%
 	slice(1) %>%
 	as.data.frame(.)
 tot_time_obs95 <- quantile(tot_time_obs$surface_event_time, probs = c(0.95))
@@ -71,10 +71,66 @@ tot_time_obs75 <- quantile(tot_time_obs$surface_event_time, probs = c(0.75))
 
 #  Create trajectory (ltraj) object for steps and turns
 tmp4 <- t4 %>%
-               dplyr::select(X, Y, ob_order_time, time_txt, time_dec, ship_whale_dist,
-                                     ship_whale_bearing, whale_behavior, same_whale_ID, time_diff_sec)
+	dplyr::select(X, Y, ob_order_time, time_txt, time_dec, ship_whale_dist,
+		ship_whale_bearing, whale_behavior, same_whale_ID, time_diff_sec)
 tmp4$same_whale_ID <- droplevels(tmp4$same_whale_ID)
 traj <- as.ltraj(xy = tmp4[,c("X","Y")], id = tmp4$same_whale_ID, typeII = FALSE)
+
+	#  With dates dummy coded for seconds between obs
+	#tmp5 <- tmp4 %>%
+	#	group_by(same_whale_ID) %>%
+	#	mutate(row_num = row_number()) %>%
+	#	mutate(dummy_date_idx =ifelse(row_num == 1, 1, 
+	#		ifelse(row_num == 2, 1 + lag(time_diff_sec), 
+	#		ifelse(row_num == 3, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2), 
+	#		ifelse(row_num == 4, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3), 
+	#		ifelse(row_num == 5, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + lag(time_diff_sec, 4), 
+	#		ifelse(row_num == 6, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5), 
+	#		ifelse(row_num == 7, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5) + lag(time_diff_sec, 6),
+	#		ifelse(row_num == 8, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5) + lag(time_diff_sec, 6)  + lag(time_diff_sec, 7),
+	#		ifelse(row_num == 9, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5) + lag(time_diff_sec, 6)  + lag(time_diff_sec, 7) + lag(time_diff_sec, 8),
+	#		ifelse(row_num == 10, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5) + lag(time_diff_sec, 6)  + lag(time_diff_sec, 7) + lag(time_diff_sec, 8) +
+	#			lag(time_diff_sec, 9),
+	#		ifelse(row_num == 11, 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5) + lag(time_diff_sec, 6)  + lag(time_diff_sec, 7) + lag(time_diff_sec, 8) +
+	#			lag(time_diff_sec, 9) + lag(time_diff_sec, 10), 1 + lag(time_diff_sec) + lag(time_diff_sec, 2) + lag(time_diff_sec, 3) + 
+	#			lag(time_diff_sec, 4) + lag(time_diff_sec, 5) + lag(time_diff_sec, 6)  + lag(time_diff_sec, 7) + lag(time_diff_sec, 8) +
+	#			lag(time_diff_sec, 9) + lag(time_diff_sec, 10) + lag(time_diff_sec, 11))))))))))))) %>%
+	#	as.data.frame()
+	#	
+	#needed_dates <- seq(from = as.POSIXct("2010/1/1"), 
+	#	by = "day", length.out = max(tmp5$dummy_date_idx, na.rm = TRUE))
+	#dummy_dates <- as.data.frame(seq(1:max(tmp5$dummy_date_idx, na.rm = TRUE))) %>%
+	#	bind_cols(as.data.frame(needed_dates))
+	#colnames(dummy_dates) <- c("dummy_date_idx", "date")	
+	#
+	#tmp5$dummy_date_idx <- round(tmp5$dummy_date_idx)
+	#tmp5$dummy_date_idx <- as.character(round(tmp5$dummy_date_idx))
+	#dummy_dates$dummy_date_idx <- as.character(dummy_dates$dummy_date_idx)
+	#
+	#tmp6 <- tmp5 %>%
+	#	left_join(dummy_dates, by = "dummy_date_idx")
+	#
+	#tmp7 <- tmp6 %>%
+	#  group_by(same_whale_ID) %>%
+	#  mutate(count = n_distinct(date)) %>%
+	#  mutate(n_obs = n()) %>%
+	#  as.data.frame() %>%
+	#  mutate(date_obs_diff = ifelse(count == n_obs, 0, 1)) %>%
+	#  filter(date_obs_diff == 1)
+	#  
+	#traj <- as.ltraj(xy = tmp6[,c("X","Y")], id = tmp6$same_whale_ID, burst = tmp6$same_whale_ID,
+		#typeII = TRUE, date = tmp6$date)
+
+
+
+
+
 
 #  Convert into dataframe
 traj_df_tmp <- ld(traj)
@@ -83,10 +139,18 @@ traj_df <- traj_df_tmp %>%
 names(traj_df) <- c("same_whale_ID", "X", "Y", "step", "turn", "abs_angle", "dx", "dy")
 
 #  Join trajectory dataframe with dataframe holding location variables
-mod_dat_tmp <- full_join(traj_df, tmp4, by = c("same_whale_ID", "X", "Y"))
+mod_dat_tmp <- full_join(traj_df, tmp4, by = c("same_whale_ID", "X", "Y")) %>%
+	mutate(ave_swim_spd = step/time_diff_sec)
 #  Remove erroneous steps based on 90th or 95th quantile
-#quantile(mod_dat$step, probs = c(0.90, 0.95), na.rm = TRUE)
-mod_dat <- filter(mod_dat_tmp, step < 1943)
+quantile(mod_dat_tmp$step, probs = c(0.90, 0.95), na.rm = TRUE)
+#quantile(mod_dat_tmp$ave_swim_spd, probs = c(0.90, 0.95), na.rm = TRUE)
+mod_dat <- filter(mod_dat_tmp, step < 2086 | is.na(step))
+mod_dat <- filter(mod_dat, ave_swim_spd < 6.6877 | is.na(ave_swim_spd)) #4.361111
+
+
+#mod_dat <- filter(mod_dat, ave_swim_spd < 4.361111)
+
+
 ################################################################################
 
 #  Subset data based on wanting to assess influence of ship and whale activity
@@ -94,41 +158,56 @@ mod_dat <- filter(mod_dat_tmp, step < 1943)
 #  Whale activity
 #   Deep dive > 120s, surface interval dive < 50
 surf <- filter(mod_dat, time_diff_sec < 50)
+#surf <- filter(mod_dat, time_diff_sec < 30)
 deep <- filter(mod_dat, time_diff_sec > 120)
 
-#  Distance to ship at first sighting
+#  Whale activity 2
+#   Fluke dive or surface activity/feeding behavior described by visual assessment
+#fluke <- mod_dat %>%
+#	group_by(same_whale_ID) %>%
+#	filter(any(whale_behavior == "DF-Dive-fluke-up")) %>%
+#	filter(!any(whale_behavior == "SA-Surface-active")) %>%
+#	as.data.frame()
+#surf_act <- mod_dat %>%
+#	group_by(same_whale_ID) %>%
+#	filter(any(whale_behavior == "SA-Surface-active")) %>%
+#	filter(!any(whale_behavior == "DF-Dive-fluke-up")) %>%
+#	as.data.frame()
+	
+
+	#  Distance to ship at first sighting
 #   Near (<1000m), far away (> 3000m)
 near_ids <- mod_dat %>%
-                    group_by(same_whale_ID) %>%
-                    slice(1) %>%
-                    filter(ship_whale_dist < 1000) %>%
-                    ungroup() %>%
-                    as.data.frame(.)
+	group_by(same_whale_ID) %>%
+	slice(1) %>%
+	filter(ship_whale_dist < 1000) %>%
+	ungroup() %>%
+	as.data.frame(.)
 near <- semi_join(mod_dat, near_ids, by = c("same_whale_ID"))
 #near <- semi_join(mod_dat, near_ids, by = c("same_whale_ID", "X", "Y")  ?? correct join?
 far_ids <- mod_dat %>%
-                  group_by(same_whale_ID) %>%
-                  slice(1) %>%
-                  filter(ship_whale_dist > 3000) %>%
-                  ungroup() %>%
-                  as.data.frame(.)
+	group_by(same_whale_ID) %>%
+	slice(1) %>%
+	filter(ship_whale_dist > 3000) %>%
+	ungroup() %>%
+	as.data.frame(.)
 far <- semi_join(mod_dat, far_ids, by = "same_whale_ID") 
 
 #  Relative bearing (approach) at first sighting
 #   Side approach( greater than +/- 40 deg relative to bow), front approach (less than +/- 20)
 side_ids <- mod_dat %>%
-                    group_by(same_whale_ID) %>%
-                    slice(1) %>%
-                    filter(ship_whale_bearing < -40 | ship_whale_bearing > 40) %>%
-                    ungroup() %>%
-                    as.data.frame(.)
+	group_by(same_whale_ID) %>%
+	slice(1) %>%
+	filter(ship_whale_bearing < -40 | ship_whale_bearing > 40) %>%
+	ungroup() %>%
+	as.data.frame(.)
 side <- semi_join(mod_dat, side_ids, by = c("same_whale_ID"))
 front_ids <- mod_dat %>%
-                    group_by(same_whale_ID) %>%
-                    slice(1) %>%
-                    filter(ship_whale_bearing < 20 | ship_whale_bearing < -20) %>%
-                    ungroup() %>%
-                    as.data.frame(.)
+	group_by(same_whale_ID) %>%
+	slice(1) %>%
+	filter(ship_whale_bearing < 20 | ship_whale_bearing < -20) %>%
+	ungroup() %>%
+	as.data.frame(.)
 front <- semi_join(mod_dat, front_ids, by = c("same_whale_ID"))
 
 
@@ -156,160 +235,212 @@ front_1k <- semi_join(mod_dat, front_1k_ids, by = c("same_whale_ID"))
 
 #   All data single
 obs_1 <- mod_dat %>%
-                group_by(same_whale_ID) %>%
-                dplyr::mutate(occ = 1:n()) %>%
-                ungroup() %>%
-                dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                arrange(ID_new) %>%
-                as.data.frame()
+	group_by(same_whale_ID) %>%
+	dplyr::mutate(occ = 1:n()) %>%
+	ungroup() %>%
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1 <- nrow(obs_1)
 ind_1 <- obs_1$ID_new
 nind_1 <- length(unique(obs_1$ID_new))
 nocc_1 <- obs_1 %>%
-                  group_by(ID_new) %>%
-                  summarise(nocc = n()) %>%
-                  .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l <- (obs_1$step)/1000
 theta <- obs_1$turn
 
 #  All data double (made square)
 l_double <- obs_1 %>%
-                     mutate(step_km = (step/1000)) %>%
-                    dplyr::select(ID_new, occ, step_km) %>%
-                    spread(occ, step_km, fill = NA, convert = FALSE)
+	mutate(step_km = (step/1000)) %>%
+	dplyr::select(ID_new, occ, step_km) %>%
+	spread(occ, step_km, fill = NA, convert = FALSE)
 theta_double <- obs_1 %>%
-                             dplyr::select(ID_new, occ, turn) %>%
-                             spread(occ, turn, fill = NA, convert = FALSE)
+	dplyr::select(ID_new, occ, turn) %>%
+	spread(occ, turn, fill = NA, convert = FALSE)
 ship_dist_double <- obs_1 %>%
-                                   mutate(ship_dist_scale = scale(ship_whale_dist)) %>%
-                                   dplyr::select(ID_new, occ, ship_dist_scale) %>%
-                                   spread(occ, ship_dist_scale, fill = NA, convert = FALSE)
+	mutate(ship_dist_scale = scale(ship_whale_dist)) %>%
+	dplyr::select(ID_new, occ, ship_dist_scale) %>%
+	spread(occ, ship_dist_scale, fill = NA, convert = FALSE)
                                 
 #   Surface interval
 obs_1_surf <- surf %>%
-                         dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                         arrange(ID_new) %>%
-                         as.data.frame()
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1_surf <- nrow(obs_1_surf)
 ind_1_surf <- obs_1_surf$ID_new
 nind_1_surf <- length(unique(obs_1_surf$ID_new))
 nocc_1_surf <- obs_1_surf %>%
-                              group_by(ID_new) %>%
-                              summarise(nocc = n()) %>%
-                              .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l_surf <- (obs_1_surf$step)/1000
 theta_surf <- obs_1_surf$turn
 
 #   Deep dive
 obs_1_dive <- deep %>%
-                          dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                          arrange(ID_new) %>%
-                          as.data.frame()
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1_dive <- nrow(obs_1_dive)
 ind_1_dive <- obs_1_dive$ID_new
 nind_1_dive <- length(unique(obs_1_dive$ID_new))
 nocc_1_dive <- obs_1_dive %>%
-                              group_by(ID_new) %>%
-                              summarise(nocc = n()) %>%
-                              .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l_dive <- (obs_1_dive$step)/1000
 theta_dive <- obs_1_dive$turn
 
+
+##   Surface active or feeding behavior
+#obs_1_surf_act <- surf_act %>%
+#	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+#	arrange(ID_new) %>%
+#	as.data.frame()
+#npts_1_surf_act <- nrow(obs_1_surf_act)
+#ind_1_surf_act <- obs_1_surf_act$ID_new
+#nind_1_surf_act <- length(unique(obs_1_surf_act$ID_new))
+#nocc_1_surf_act <- obs_1_surf_act %>%
+#	group_by(ID_new) %>%
+#	summarise(nocc = n()) %>%
+#	.$nocc
+#l_surf_act <- (obs_1_surf_act$step)/1000
+#theta_surf_act <- obs_1_surf_act$turn
+#
+##   Fluke dive
+#obs_1_fluke <- fluke %>%
+#	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+#	arrange(ID_new) %>%
+#	as.data.frame()
+#npts_1_fluke <- nrow(obs_1_fluke)
+#ind_1_fluke <- obs_1_fluke$ID_new
+#nind_1_fluke <- length(unique(obs_1_fluke$ID_new))
+#nocc_1_fluke <- obs_1_fluke %>%
+#	group_by(ID_new) %>%
+#	summarise(nocc = n()) %>%
+#	.$nocc
+#l_fluke <- (obs_1_fluke$step)/1000
+#theta_fluke <- obs_1_fluke$turn
+#
+#
+
 #   First sighting near (<1000m)
 obs_1_near <- near %>%
-                         dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                         arrange(ID_new) %>%
-                         as.data.frame()
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1_near <- nrow(obs_1_near)
 ind_1_near <- obs_1_near$ID_new
 nind_1_near <- length(unique(obs_1_near$ID_new))
 nocc_1_near <- obs_1_near %>%
-                            group_by(ID_new) %>%
-                            summarise(nocc = n()) %>%
-                            .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l_near <- (obs_1_near$step)/1000
 theta_near <- obs_1_near$turn
 
 #   First sighting far ( > 3000m)
 obs_1_far <- far %>%
-                      dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                      arrange(ID_new) %>%
-                      as.data.frame()
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1_far <- nrow(obs_1_far)
 ind_1_far <- obs_1_far$ID_new
 nind_1_far <- length(unique(obs_1_far$ID_new))
 nocc_1_far <- obs_1_far %>%
-                        group_by(ID_new) %>%
-                        summarise(nocc = n()) %>%
-                        .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l_far <- (obs_1_far$step)/1000
 theta_far <- obs_1_far$turn
 
 #   First sighting approaching from side 
 obs_1_side <- side %>%
-                        dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                        arrange(ID_new) %>%
-                        as.data.frame()
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1_side <- nrow(obs_1_side)
 ind_1_side <- obs_1_side$ID_new
 nind_1_side <- length(unique(obs_1_side$ID_new))
 nocc_1_side <- obs_1_side %>%
-                          group_by(ID_new) %>%
-                          summarise(nocc = n()) %>%
-                          .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l_side <- (obs_1_side$step)/1000
 theta_side <- obs_1_side$turn
 
 #   First sighting approaching from front
 obs_1_front <- front %>%
-                         dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                         arrange(ID_new) %>%
-                         as.data.frame()
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame()
 npts_1_front <- nrow(obs_1_front)
 ind_1_front <- obs_1_front$ID_new
 nind_1_front <- length(unique(obs_1_front$ID_new))
 nocc_1_front <- obs_1_front %>%
-                           group_by(ID_new) %>%
-                           summarise(nocc = n()) %>%
-                           .$nocc
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
 l_front <- (obs_1_front$step)/1000
 theta_front <- obs_1_front$turn
 
 
+#
+##   First sighting approaching from side AND first sighting within 1k
+#obs_1_side_1k <- side_1k %>%
+#	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+#	arrange(ID_new) %>%
+#	as.data.frame()
+#npts_1_side_1k <- nrow(obs_1_side_1k)
+#ind_1_side_1k <- obs_1_side_1k$ID_new
+#nind_1_side_1k <- length(unique(obs_1_side_1k$ID_new))
+#nocc_1_side_1k <- obs_1_side_1k %>%
+#	group_by(ID_new) %>%
+#	summarise(nocc = n()) %>%
+#	.$nocc
+#l_side_1k <- (obs_1_side_1k$step)/1000
+#theta_side_1k <- obs_1_side_1k$turn
 
-#   First sighting approaching from side AND first sighting within 1k
-obs_1_side_1k <- side_1k %>%
-                        dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                        arrange(ID_new) %>%
-                        as.data.frame()
-npts_1_side_1k <- nrow(obs_1_side_1k)
-ind_1_side_1k <- obs_1_side_1k$ID_new
-nind_1_side_1k <- length(unique(obs_1_side_1k$ID_new))
-nocc_1_side_1k <- obs_1_side_1k %>%
-                          group_by(ID_new) %>%
-                          summarise(nocc = n()) %>%
-                          .$nocc
-l_side_1k <- (obs_1_side_1k$step)/1000
-theta_side_1k <- obs_1_side_1k$turn
-
-#   First sighting approaching from front
-obs_1_front_1k <- front_1k %>%
-                         dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
-                         arrange(ID_new) %>%
-                         as.data.frame()
-npts_1_front_1k <- nrow(obs_1_front_1k)
-ind_1_front_1k <- obs_1_front_1k$ID_new
-nind_1_front_1k <- length(unique(obs_1_front_1k$ID_new))
-nocc_1_front_1k <- obs_1_front_1k %>%
-                           group_by(ID_new) %>%
-                           summarise(nocc = n()) %>%
-                           .$nocc
-l_front_1k <- (obs_1_front_1k$step)/1000
-theta_front_1k <- obs_1_front_1k$turn
+##   First sighting approaching from front AND first sighting within 1k
+#obs_1_front_1k <- front_1k %>%
+#	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+#	arrange(ID_new) %>%
+#	as.data.frame()
+#npts_1_front_1k <- nrow(obs_1_front_1k)
+#ind_1_front_1k <- obs_1_front_1k$ID_new
+#nind_1_front_1k <- length(unique(obs_1_front_1k$ID_new))
+#nocc_1_front_1k <- obs_1_front_1k %>%
+#	group_by(ID_new) %>%
+#	summarise(nocc = n()) %>%
+#	.$nocc
+#l_front_1k <- (obs_1_front_1k$step)/1000
+#theta_front_1k <- obs_1_front_1k$turn
 ################################################################################
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####### OTHER IDEAS AND SUBSETS....Not currently used
 
 #  Histogram for number of cues per individual
 tmp5 <- tmp4 %>%
@@ -317,26 +448,6 @@ tmp5 <- tmp4 %>%
               mutate(n_cue = n()) %>%
               ungroup() %>%
               as.data.frame()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

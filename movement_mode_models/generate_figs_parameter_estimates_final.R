@@ -141,7 +141,7 @@ turns_all
 
 
 
-
+par(mfrow = c(1,2))
 par(yaxs="i",las=1)
 hist(post_sims_plot$steps, prob=TRUE, col="grey80", border="white", xlab="Step length (km)",
 	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
@@ -161,18 +161,18 @@ lines(density(post_sims_plot$turns_deg),col="black",lwd=2)
 #abline(v = mean(post_sims_plot$turns_deg), lty = 2, lwd = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 
-	
-	
-par(yaxs="i",las=1)
-hist(post_sims_su_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
-	ylab = "Density \n", xlim = c(-180, 180), xaxt='n', main=NULL)
-axis(side = 1, at = c(-180, -135, -90, -45, 0, 45, 90, 135, 180))
-box(bty="l")
-lines(density(post_sims_su_plot$turns_deg),col="black",lwd=2)
-abline(v = mean(post_sims_su_plot$turns_deg), lty = 2, lwd = 2)
-grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
-	
-################################################################################      
+#	
+#	
+#par(yaxs="i",las=1)
+#hist(post_sims_su_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+#	ylab = "Density \n", xlim = c(-180, 180), xaxt='n', main=NULL)
+#axis(side = 1, at = c(-180, -135, -90, -45, 0, 45, 90, 135, 180))
+#box(bty="l")
+#lines(density(post_sims_su_plot$turns_deg),col="black",lwd=2)
+#abline(v = mean(post_sims_su_plot$turns_deg), lty = 2, lwd = 2)
+#grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
+#	
+#################################################################################      
 
 
 
@@ -265,10 +265,11 @@ turns_all_double_plot
 
 
 
+
 #  Deep dive vs surface interval
 x_d <- single_fit_dive
 x_su <- single_fit_surf
-x_all <- single_fit
+#x_all <- single_fit
 keep_1 <- sample(1:niter, nsamp, replace = F)
 keep_2 <- sample(1:niter, nsamp, replace = F)
 keep_3 <- sample(1:niter, nsamp, replace = F)
@@ -277,22 +278,22 @@ chain_1_d <- x_d[[1]]
 sims_1_d <- chain_1_d[keep_1, c(2, 3, 4, 1)]
 chain_1_su<- x_su[[1]]
 sims_1_su <- chain_1_su[keep_1, c(2, 3, 4, 1)]
-chain_1_all<- x_all[[1]]
-sims_1_all <- chain_1_all[keep_1, c(2, 3, 4, 1)]
+#chain_1_all<- x_all[[1]]
+#sims_1_all <- chain_1_all[keep_1, c(2, 3, 4, 1)]
 
 chain_2_d <- x_d[[2]]
 sims_2_d <- chain_2_d[keep_2, c(2, 3, 4, 1)]
 chain_2_su <- x_su[[2]]
 sims_2_su <- chain_2_su[keep_2, c(2, 3, 4, 1)]
-chain_2_all<- x_all[[2]]
-sims_2_all <- chain_2_all[keep_2, c(2, 3, 4, 1)]
+#chain_2_all<- x_all[[2]]
+#sims_2_all <- chain_2_all[keep_2, c(2, 3, 4, 1)]
 
 chain_3_d <- x_d[[3]]
 sims_3_d <- chain_3_d[keep_3, c(2, 3, 4, 1)]
 chain_3_su <- x_su[[3]]
 sims_3_su <- chain_3_su[keep_3, c(2, 3, 4, 1)]
-chain_3_all<- x_all[[3]]
-sims_3_all <- chain_3_all[keep_3, c(2, 3, 4, 1)]
+#chain_3_all<- x_all[[3]]
+#sims_3_all <- chain_3_all[keep_3, c(2, 3, 4, 1)]
 
 sims_d <- rbind(sims_1_d, sims_2_d, sims_3_d)
 sims_su <- rbind(sims_1_su, sims_2_su, sims_3_su)
@@ -302,14 +303,15 @@ steps_d <- numeric(length = nrow(sims_d))
 turns_d <- numeric(length = nrow(sims_d))
 steps_su <- numeric(length = nrow(sims_su))
 turns_su <- numeric(length = nrow(sims_su))
-steps_all <- numeric(length = nrow(sims_all))
-turns_all <- numeric(length = nrow(sims_all))
+#steps_all <- numeric(length = nrow(sims_all))
+#turns_all <- numeric(length = nrow(sims_all))
 
 for(i in 1:nrow(sims_d)){
   steps_d[i] <- rweibull(1, sims_d[i,3], (1/sims_d[i,4])^(1/sims_d[i,3]))
   turns_d[i] <- rwcauchy(1, sims_d[i,1], sims_d[i,2])
   #rwrappedcauchy(1, sims_d[i,1],  sims_d[i,2])
   }
+  
 for(i in 1:nrow(sims_su)){
   steps_su[i] <- rweibull(1, sims_su[i,3], (1/sims_su[i,4])^(1/sims_su[i,3]))
   turns_su[i] <- rwcauchy(1, sims_su[i,1], sims_su[i,2])
@@ -364,6 +366,7 @@ surf_turns_cat <- post_sims_su_plot %>%
 ################################################################################      
 
 
+par(mfrow = c(2,2))
 par(yaxs="i",las=1)
 hist(post_sims_d_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Step length (km)",
 	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
@@ -373,18 +376,18 @@ abline(v = mean(post_sims_d_plot$steps), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
 	
 par(yaxs="i",las=1)
-hist(post_sims_d_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turn angle (deg)",
-	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+hist(post_sims_d_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turn angle (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), breaks = 50, main=NULL)
 #main="Distribution of Respirable Particle Concentrations")
 box(bty="l")
-lines(density(post_sims_d_plot$abs_turns_deg),col="black",lwd=2)
-abline(v = mean(post_sims_d_plot$abs_turns_deg), lty = 2)
+lines(density(post_sims_d_plot$turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_d_plot$turns_deg), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 
 
 par(yaxs="i",las=1)
 hist(post_sims_su_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
-	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
+	ylab = "Density \n", xlim = c(0, 0.3), breaks = 50, main=NULL)
 box(bty="l")
 lines(density(post_sims_su_plot$steps),col="black",lwd=2)
 abline(v = mean(post_sims_su_plot$steps), lty = 2)
@@ -403,29 +406,29 @@ grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 
 #  Density plots
 steps_all_surf_dive_plot <- ggplot(all_surf_dive, aes(steps, linetype = type)) + 
-                                             geom_density(size = 1.25) +
-                                             xlab("\n Step length (km)") +
-                                             ylab("Frequency \n") +
-                                             xlim(c(0, 5)) +
-                                             #ylim(c(0, 2.5)) +
-                                             theme_bw() +
-                                             theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                                             axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
-                                             scale_linetype_manual(values = c(1, 2, 3))
-                                             #theme(legend.position="none")
+  geom_density(size = 1.25) +
+  xlab("\n Step length (km)") +
+  ylab("Frequency \n") +
+  xlim(c(0, 5)) +
+  #ylim(c(0, 2.5)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
+  axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
+  scale_linetype_manual(values = c(1, 2, 3))
+  #theme(legend.position="none")
 steps_all_surf_dive_plot
 
 turns_all_surf_dive_plot <- ggplot(all_surf_dive, aes(turns, linetype = type)) + 
-                                             geom_density(size = 1.25) +
-                                             xlab("\n Turn angle (deg)") +
-                                             ylab("Frequency \n") +
-                                             #xlim(c(0, 5)) +
-                                             #ylim(c(0, 2.5)) +
-                                             theme_bw() +
-                                             theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                                             axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
-                                             scale_linetype_manual(values = c(1, 2, 3))
-                                             #theme(legend.position="none")
+ geom_density(size = 1.25) +
+ xlab("\n Turn angle (deg)") +
+ ylab("Frequency \n") +
+ #xlim(c(0, 5)) +
+ #ylim(c(0, 2.5)) +
+ theme_bw() +
+ theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
+ axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
+ scale_linetype_manual(values = c(1, 2, 3))
+ #theme(legend.position="none")
 turns_all_surf_dive_plot
 ################################################################################
 
@@ -520,42 +523,43 @@ far_turns_cat <- post_sims_f_plot %>%
 	
 	
 post_sims_all_plot <- post_sims_all %>% 
-                                    mutate(iter_num = 1:nrow(post_sims_all)) %>%
-                                    mutate(type = "All data") %>%
-                                    dplyr::rename(steps = steps_all, turns = turns_all)
-                                    
+ mutate(iter_num = 1:nrow(post_sims_all)) %>%
+ mutate(type = "All data") %>%
+ dplyr::rename(steps = steps_all, turns = turns_all)
+
 all_near_far <- rbind(post_sims_n_plot, post_sims_f_plot, post_sims_all_plot)
 all_near_far$type <- as.factor(all_near_far$type)
 ################################################################################      
 
 #  Density plots
 steps_all_near_far_plot <- ggplot(all_near_far, aes(steps, linetype = type)) + 
-                                             geom_density(size = 1.25) +
-                                             xlab("\n Step length (km)") +
-                                             ylab("Frequency \n") +
-                                             xlim(c(0, 5)) +
-                                             #ylim(c(0, 2.5)) +
-                                             theme_bw() +
-                                             theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                                             axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
-                                             scale_linetype_manual(values = c(1, 2, 3))
-                                             #theme(legend.position="none")
+ geom_density(size = 1.25) +
+ xlab("\n Step length (km)") +
+ ylab("Frequency \n") +
+ xlim(c(0, 5)) +
+ #ylim(c(0, 2.5)) +
+ theme_bw() +
+ theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
+ axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
+ scale_linetype_manual(values = c(1, 2, 3))
+ #theme(legend.position="none")
 steps_all_near_far_plot
 
 turns_all_near_far_plot <- ggplot(all_near_far, aes(turns, linetype = type)) + 
-                                             geom_density(size = 1.25) +
-                                             xlab("\n Turn angle (deg)") +
-                                             ylab("Frequency \n") +
-                                             #xlim(c(0, 5)) +
-                                             #ylim(c(0, 2.5)) +
-                                             theme_bw() +
-                                             theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                                             axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
-                                             scale_linetype_manual(values = c(1, 2, 3))
-                                             #theme(legend.position="none")
+ geom_density(size = 1.25) +
+ xlab("\n Turn angle (deg)") +
+ ylab("Frequency \n") +
+ #xlim(c(0, 5)) +
+ #ylim(c(0, 2.5)) +
+ theme_bw() +
+ theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
+ axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
+ scale_linetype_manual(values = c(1, 2, 3))
+ #theme(legend.position="none")
 turns_all_near_far_plot
 ################################################################################
 
+par(mfrow = c(2,2))
 par(yaxs="i",las=1)
 hist(post_sims_n_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps (km)",
 	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
@@ -565,12 +569,12 @@ abline(v = mean(post_sims_n_plot$steps), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
 	
 par(yaxs="i",las=1)
-hist(post_sims_n_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
-	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+hist(post_sims_n_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), breaks = 50, main=NULL)
 #main="Distribution of Respirable Particle Concentrations")
 box(bty="l")
-lines(density(post_sims_n_plot$abs_turns_deg),col="black",lwd=2)
-abline(v = mean(post_sims_n_plot$abs_turns_deg), lty = 2)
+lines(density(post_sims_n_plot$turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_n_plot$turns_deg), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 
 
@@ -583,12 +587,12 @@ abline(v = mean(post_sims_f_plot$steps), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
 	
 par(yaxs="i",las=1)
-hist(post_sims_f_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
-	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+hist(post_sims_f_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), breaks = 50, main=NULL)
 #main="Distribution of Respirable Particle Concentrations")
 box(bty="l")
-lines(density(post_sims_f_plot$abs_turns_deg),col="black",lwd=2)
-abline(v = mean(post_sims_f_plot$abs_turns_deg), lty = 2)
+lines(density(post_sims_f_plot$turns_deg),col="black",lwd=2)
+abline(v = mean(post_sims_f_plot$turns_deg), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 ################################################################################      
 
@@ -692,30 +696,30 @@ all_side_front$type <- as.factor(all_side_front$type)
 
 #  Density plots
 steps_all_side_front_plot <- ggplot(all_side_front, aes(steps, linetype = type)) + 
-                                               geom_density(size = 1.25) +
-                                               xlab("\n Step length (km)") +
-                                               ylab("Frequency \n") +
-                                               #xlim(c(0, 5)) +
-                                               #ylim(c(0, 2.5)) +
-                                               theme_bw() +
-                                               theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                                               axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
-                                               scale_linetype_manual(values = c(1, 2, 3))
-                                               #theme(legend.position="none")
+ geom_density(size = 1.25) +
+ xlab("\n Step length (km)") +
+ ylab("Frequency \n") +
+ #xlim(c(0, 5)) +
+ #ylim(c(0, 2.5)) +
+ theme_bw() +
+ theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
+ axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
+ scale_linetype_manual(values = c(1, 2, 3))
+ #theme(legend.position="none")
 steps_all_side_front_plot
 
 turns_all_side_front_plot <- ggplot(all_side_front, aes(abs_turn, linetype = type)) + 
 											   #geom_freq() +
-                                               geom_density(size = 1.25) +
-                                               xlab("\n Turn angle (deg)") +
-                                               ylab("Frequency \n") +
-                                               #xlim(c(0, 5)) +
-                                               #ylim(c(0, 2.5)) +
-                                               theme_bw() +
-                                               theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
-                                               axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
-                                               scale_linetype_manual(values = c(1, 2, 3))
-                                               #theme(legend.position="none")
+ geom_density(size = 1.25) +
+ xlab("\n Turn angle (deg)") +
+ ylab("Frequency \n") +
+ #xlim(c(0, 5)) +
+ #ylim(c(0, 2.5)) +
+ theme_bw() +
+ theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank(), 
+ axis.text = element_text(size = rel(2)), axis.title = element_text(size = rel(2))) +
+ scale_linetype_manual(values = c(1, 2, 3))
+ #theme(legend.position="none")
 turns_all_side_front_plot
 ################################################################################
 
@@ -729,17 +733,17 @@ hist(post_sims_si_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps
 	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
 box(bty="l")
 lines(density(post_sims_si_plot$steps),col="black",lwd=2)
-points(steps_side_1k, col = "red", pch="|")
+#points(steps_side_1k, col = "red", pch="|")
 abline(v = mean(post_sims_si_plot$steps), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
 	
 par(yaxs="i",las=1)
-hist(post_sims_si_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
-	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+hist(post_sims_si_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), breaks = 50, main=NULL)
 #main="Distribution of Respirable Particle Concentrations")
 box(bty="l")
-lines(density(post_sims_si_plot$abs_turns_deg),col="black",lwd=2)
-points(turns_side_1k, col = "red", pch="|")
+lines(density(post_sims_si_plot$turns_deg),col="black",lwd=2)
+#points(turns_side, col = "red", pch="|")
 abline(v = mean(post_sims_si_plot$abs_turns_deg), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 
@@ -749,18 +753,18 @@ hist(post_sims_fr_plot$steps, prob=TRUE,col="grey80",border="white", xlab="Steps
 	ylab = "Density \n", xlim = c(0, 2.5), breaks = 50, main=NULL)
 box(bty="l")
 lines(density(post_sims_fr_plot$steps),col="black",lwd=2)
-points(steps_front_1k, col = "red", pch="|")
+#points(steps_front_1k, col = "red", pch="|")
 abline(v = mean(post_sims_fr_plot$steps), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")	
 	
 par(yaxs="i",las=1)
-hist(post_sims_fr_plot$abs_turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
-	ylab = "Density \n", xlim = c(0, 190), breaks = 50, main=NULL)
+hist(post_sims_fr_plot$turns_deg, prob=TRUE,col="grey80",border="white", xlab="Turns (deg)",
+	ylab = "Density \n", xlim = c(-180, 180), breaks = 50, main=NULL)
 #main="Distribution of Respirable Particle Concentrations")
 box(bty="l")
-lines(density(post_sims_fr_plot$abs_turns_deg),col="black",lwd=2)
-points(turns_front_1k, col = "red", pch="|")
-abline(v = mean(post_sims_fr_plot$abs_turns_deg), lty = 2)
+lines(density(post_sims_fr_plot$turns_deg),col="black",lwd=2)
+#points(turns_front_1k, col = "red", pch="|")
+abline(v = mean(post_sims_fr_plot$turns_deg), lty = 2)
 grid(nx=NA,ny=NULL,lty=1,lwd=1,col="gray")
 ################################################################################      
 

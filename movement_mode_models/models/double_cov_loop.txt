@@ -30,6 +30,7 @@ model{
     beta0 ~ dnorm(0, 0.001)T(-5, 5)
     beta1 ~ dnorm(0, 0.001)T(-5, 5)
 
+ 
     # Random change to the intercept for each individual for state 1
     # tau_alpha ~ dunif(0, 50)
     # for (ind in 1:nind){
@@ -41,7 +42,10 @@ model{
     #  Loop over all observations
     for(ind in 1:nind){
       for (t in 1:nocc[ind]){ # nocc is the number of observations that occurs for each individual
-        
+  
+        #  Prior for ship covariate for missing values
+        ship[ind,t] ~ dnorm(0, 0.001)T(-5, 5)
+         
         logit(state[ind, t, 1]) <- beta0 + beta1*ship[ind, t] #+ alpha[ind] # probability of being in state 1 at time t
         state[ind, t, 2] <- 1 - state[ind, t, 1]
         idx[ind, t] ~ dcat(state[ind, t,]) # Latent state and parameter index
