@@ -132,9 +132,9 @@ grid.arrange(trace_s1, dens_s1, trace_s2, dens_s2, ncol=2, nrow=2)
 
 
 
-d_1 <- ggs(double_fit, family = "^mu|^rho")
-d_2 <- ggs(double_fit, family = "^lambda|^v")
-d_3 <- ggs(double_fit, family = "^beta|^eps")
+d_1 <- ggs(double_cov_fit, family = "^mu|^rho")
+d_2 <- ggs(double_cov_fit, family = "^lambda|^v")
+d_3 <- ggs(double_cov_fit, family = "^beta|^eps")
 
 trace_d1 <- ggs_traceplot(d_1) + 
                     theme_bw() +

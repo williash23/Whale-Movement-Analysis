@@ -147,6 +147,7 @@ summary(double_cov_fit)
                                                      
 #  Calculate Rhat
 double_cov_rhat <- gelman.diag(double_cov_fit, multivariate = F)[[1]]
+double_cov_rhat
 #  Calcualte DIC
 #double_cov_dic <- dic.samples(out_double_cov, n.iter = 500, thin = 1, type = "pD")
 

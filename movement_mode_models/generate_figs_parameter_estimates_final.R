@@ -32,7 +32,7 @@ load("C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_
 # NOTE: due to differences in formulation of Weibull distribution between JAGS and R:
 ###### scale = (1/lambda)^(1/v) ######
 niter <- 10000
-nsamp <- 1000
+nsamp <- 10000
 #nsamp <- 8000
 
 rwcauchy <- function(n, mu = 0, rho = 0) {
