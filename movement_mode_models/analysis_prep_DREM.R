@@ -174,7 +174,8 @@ dur_ind <- dur_ind[,-1]
 
 
 
-ggmap::register_google(key = "AIzaSyDVvbkX60GUUXeO_0epkKi7aNc1FxAUAUs")
+#  Plotting
+# load API
 
 #  Load data
 dat_raw <- read.csv("C:/Users/saraw/Documents/Whales/data/Whales_0615_general_clean.csv")
