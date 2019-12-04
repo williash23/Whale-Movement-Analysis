@@ -6,7 +6,7 @@
 ################################################################################
 
 #  Load packages
-library(rjags)
+library(jagsUI)
 library(mcmcplots)
 library(coda)
 #  Load "glm" module for JAGS
@@ -15,12 +15,83 @@ load.module("dic")
 ################################################################################
 
 #   MCMC settings
-nc <- 3
-ni <- 110000
+ni <- 25000
+nt <- 1
 nb <- 10000
-nt <- 10
-na <- 5000
+nc <- 3
 ################################################################################
+
+
+#  Run "single" model - DREM
+#   Discrete Random Effects Model (different mean for each parameter according to indicator for ship-whale context)
+#   Bundle data
+jags.dat <- list(npts = npts_1, theta = theta, l = l, reg_ind = dist_ind)
+ 
+#   Inits function
+jags.inits <- function(){list(v = runif(3, 0.01,  5), 
+	lambda = runif(3, 0.01, 5), 
+	rho = runif(3, 0.01, 1), 
+	mu = runif(3, -3.14159265359, 3.14159265359))
+	}
+
+#   Parameters to monitor
+jags.parms <- c("mu", "rho", "v","lambda")
+
+out_DREM <- jagsUI(jags.dat,
+	jags.inits,
+	jags.parms,
+	model.file = "C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/models/single_DREM.txt", 
+	n.chains = nc, 
+	n.iter = ni, 
+	n.burnin = nb,
+	n.thin = nt, 
+	parallel = TRUE,
+	n.cores = 4)
+	
+S <- ggmcmc::ggs(out_DREM$samples) %>% dplyr::filter(Parameter != "deviance")
+
+mu_plot <-  ggmcmc::ggs_density(S, family = "mu", hpd = TRUE, greek = TRUE) + 
+	theme_bw() +
+	guides(colour = FALSE, fill = FALSE)
+rho_plot <-  ggmcmc::ggs_density(S, family = "rho", hpd = TRUE, greek = TRUE) + 
+	theme_bw() +
+	guides(colour = FALSE, fill = FALSE)
+v_plot <-  ggmcmc::ggs_density(S, family = "v", hpd = TRUE, greek = TRUE) + 
+	theme_bw() +
+	guides(colour = FALSE, fill = FALSE)
+lambda_plot <-  ggmcmc::ggs_density(S, family = "lambda", hpd = TRUE, greek = TRUE) + 
+	theme_bw() +
+	guides(colour = FALSE, fill = FALSE)
+gridExtra::grid.arrange(mu_plot, rho_plot, v_plot, lambda_plot)
+#mcmcplots::mcmcplot(out_DREM$samples)
+
+
+#  Initialize model and go through adaptation 
+out_single <- jagsUI(data = jags.dat,
+	file = "C:/Users/saraw/OneDrive/Documents/GitHub/Whale-Movement-Analysis/movement_mode_models/models/single_DREM.txt", 
+	inits = inits, 
+	n.chains = nc, 
+	n.adapt = na)
+
+#  Burnin
+update(out_single, n.iter = nb)
+
+#  Sample posterior
+single_fit <- coda.samples(out_single,
+	variable.names= params, 
+	n.iter = ni, 
+	thin = nt)
+
+#  Calculate Rhat
+single_rhat <- gelman.diag(single_fit, multivariate = F)[[1]]
+#  Calcualte DIC
+single_dic <- dic.samples(out_single, n.iter = 1000, thin = 1, type = "pD")
+#  Look at simple MCMC plots
+mcmcplot(single_fit)
+#  Look at summary output
+summary(single_fit)
+################################################################################
+
 
 
 

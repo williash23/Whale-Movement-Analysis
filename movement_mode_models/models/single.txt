@@ -20,11 +20,6 @@ model{
     #  Mean direction of turns
     mu ~ dunif(-3.14159265359, 3.14159265359)
 
-  # Random change to the intercept for each individual
-  #tau_alpha ~ dunif(0, 50)
-  # for (ind in 1:nind){
-    # alpha[ind] ~ dnorm(0, tau_alpha)T(-5, 5)
-    # }
 
   # Likelihood
     #  Loop over all observations
@@ -42,3 +37,4 @@ model{
 
       }
     }
+	

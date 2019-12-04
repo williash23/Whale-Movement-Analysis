@@ -1,5 +1,5 @@
 # Sara Williams
-# 12/8/2015; updated 2/1/2016, 3/9/2016, 12/16/2016; 1/17/2017
+# 12/8/2015; updated 2/1/2016, 3/9/2016, 12/16/2016; 1/17/2017; 9/4/2019
 # Data prep for model running script.
 ################################################################################
 
@@ -12,7 +12,7 @@ library(aspace)
 ################################################################################
 
 #  Load data
-dat_raw <- read.csv("C:/Users/saraw/Desktop/Whale/data/Whales_0615_general_clean.csv")
+dat_raw <- read.csv("C:/Users/saraw/Documents/Whales/data/Whales_0615_general_clean.csv")
 
 #  Data clean up and manipulation
 tmp1 <- dat_raw %>%
@@ -144,8 +144,10 @@ mod_dat_tmp <- full_join(traj_df, tmp4, by = c("same_whale_ID", "X", "Y")) %>%
 #  Remove erroneous steps based on 90th or 95th quantile
 quantile(mod_dat_tmp$step, probs = c(0.90, 0.95), na.rm = TRUE)
 #quantile(mod_dat_tmp$ave_swim_spd, probs = c(0.90, 0.95), na.rm = TRUE)
-mod_dat <- filter(mod_dat_tmp, step < 2086 | is.na(step))
-mod_dat <- filter(mod_dat, ave_swim_spd < 6.6877 | is.na(ave_swim_spd)) #4.361111
+#mod_dat <- filter(mod_dat_tmp, step < 2086 | is.na(step))
+mod_dat <- mod_dat_tmp %>%
+	dplyr::filter(ave_swim_spd < 6.6877) %>% #4.361111
+	dplyr::filter(!is.na(step))
 
 
 #mod_dat <- filter(mod_dat, ave_swim_spd < 4.361111)
@@ -175,7 +177,7 @@ deep <- filter(mod_dat, time_diff_sec > 120)
 #	as.data.frame()
 	
 
-	#  Distance to ship at first sighting
+#  Distance to ship at first sighting
 #   Near (<1000m), far away (> 3000m)
 near_ids <- mod_dat %>%
 	group_by(same_whale_ID) %>%
@@ -250,6 +252,39 @@ nocc_1 <- obs_1 %>%
 	.$nocc
 l <- (obs_1$step)/1000
 theta <- obs_1$turn
+
+# DREM
+obs_1 <- mod_dat %>%
+	group_by(same_whale_ID) %>%
+	dplyr::mutate(occ = 1:n()) %>%
+	ungroup() %>%
+	dplyr::mutate(ID_new = as.numeric(as.factor(as.character(same_whale_ID)))) %>%
+	arrange(ID_new) %>%
+	as.data.frame() %>%
+	#mutate(mean_ship_whale_dist = mean(ship_whale_dist, na.rm = TRUE)) %>%
+	#mutate(mean_abs_rel_bearing = mean(abs(ship_whale_bearing), na.rm = TRUE)) %>%
+	#mutate(DREM_dist_ind = ifelse(ship_whale_dist < mean_ship_whale_dist, 1, 2)) %>%
+	#mutate(DREM_bear_ind = ifelse(ship_whale_bearing < mean_abs_rel_bearing, 1, 2)) %>%
+	mutate(DREM_dist_ind = ifelse(ship_whale_dist < 1001, 1, 
+		ifelse(ship_whale_dist >= 1001 & ship_whale_dist < 3001, 2, 3))) %>%
+	mutate(DREM_bear_ind = ifelse(abs(ship_whale_bearing) < 22.56, 1,
+		ifelse(abs(ship_whale_bearing) >= 22.56 & abs(ship_whale_bearing) < 45, 2, 3))) %>%
+	mutate(DREM_dur_ind = ifelse(time_diff_sec < 50, 1,
+		ifelse(time_diff_sec >= 50 & time_diff_sec < 120, 2, 3))) %>%
+	dplyr::filter(!is.na(X))
+	
+npts_1 <- nrow(obs_1)
+ind_1 <- obs_1$ID_new
+nind_1 <- length(unique(obs_1$ID_new))
+nocc_1 <- obs_1 %>%
+	group_by(ID_new) %>%
+	summarise(nocc = n()) %>%
+	.$nocc
+l <- (obs_1$step)/1000
+theta <- obs_1$turn
+dist_ind <- obs_1$DREM_dist_ind
+bear_ind <- obs_1$DREM_bear_ind
+dur_ind <- obs_1$DREM_dur_ind
 
 #  All data double (made square)
 l_double <- obs_1 %>%
