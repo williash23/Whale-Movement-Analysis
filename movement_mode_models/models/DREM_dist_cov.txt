@@ -1,0 +1,57 @@
+data{
+  #  Generate vector of 1's for 1's trick for wrapped Cauchy distribution
+    for(ind in 1:nind){
+      for(t in 1:nocc[ind]){
+        ones[ind, t] <- 1
+      }  
+    }
+  }
+
+model{
+   #  Shape parameter for step length distribution
+	alpha_v ~ dgamma(0.01, 0.01)
+ 
+    #  Scale parameter for step length distribution
+    alpha_lambda ~ dgamma(0.01, 0.01)  
+	
+	#  Mean cosine of turns
+    alpha_rho ~ dunif(0, 1)  
+
+    #  Mean direction of turns
+   alpha_mu ~ dunif(-3.14159265359, 3.14159265359)
+
+	#  Dicrete Random Effect on group
+	sd_reg ~ dunif(0, 100)
+	tau_reg <- 1/(sd_reg^2)
+	
+	for(k in 1:3){
+		dre_dist_mu[k] ~ dnorm(0, tau_reg)
+		dre_dist_rho[k] ~ dnorm(0, tau_reg)
+		dre_dist_v[k] ~ dnorm(0, tau_reg)
+		dre_dist_lambda[k] ~ dnorm(0, tau_reg)
+		}   
+
+	#  Loop over all observations
+	for(ind in 1:nind){
+	  for (t in 1:nocc[ind]){ # nocc is the number of observations that occurs for each individual
+
+		# Linear predictors with discrete random effect for group
+		logit(mu[ind, t]) <- alpha_mu +  dre_dist_mu[dist_ind[ind, t]] 
+		logit(rho[ind, t]) <- alpha_rho  + dre_dist_rho[dist_ind[ind, t]] 
+		logit(v[ind, t]) <- alpha_v + dre_dist_v[dist_ind[ind, t]] 
+		logit(lambda[ind, t]) <- alpha_lambda + dre_bear_lambda[dist_ind[ind, t]] 
+
+		# Likelihood
+		#  Steps
+		l[ind, t] ~ dweib(v[ind, t], lambda[ind, t]) 
+
+		#  Turns
+		# Uses the “ones” trick to sample from the Wrapped Cauchy distribution
+		ones[ind, t] ~ dbern(wC[ind, t])
+		# PDF for wrapped Cauchy distribution, divided by 500 (arbitrary) to ensure that wC[t] will be less than one
+		wC[ind, t] <- (1/(2*3.14159265359)*(1-rho[ind, t]*rho[ind, t])/(1+rho[ind, t]*rho[ind, t]-2*rho[ind, t]*cos(theta[ind, t]-mu[ind, t])))/500
+		theta[ind, t] ~ dunif(-3.14159265359, 3.14159265359)
+		}
+	  }
+
+	}

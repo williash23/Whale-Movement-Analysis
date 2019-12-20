@@ -28,6 +28,14 @@ model{
 	mu[2] ~ dunif(-3.14159265359, 3.14159265359)
 	mu[3] ~ dunif(-3.14159265359, 3.14159265359)
 
+	index_prob [1] <- 0.333
+	index_prob [2] <- 0.333
+	index_prob [3] <- 0.334
+	
+	for(t in 1:npts){
+		idx[t] ~ dcat(index_prob[])
+		}
+	
 	# Likelihood
 	#  Loop over all observations
 	for (t in 1:npts){
