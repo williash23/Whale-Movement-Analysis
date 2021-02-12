@@ -1,0 +1,22 @@
+model{
+   #  Shape parameter for step length distribution
+	alpha_v ~ dgamma(0.01, 0.01)
+ 
+    #  Scale parameter for step length distribution
+    alpha_lambda ~ dgamma(0.01, 0.01)  
+	
+	beta ~ dunif(-5, 5)
+
+
+	#  Loop over all observations
+	for(t in 1:npts){
+	 
+		# Linear predictors with discrete random effect for group
+		logit(v[t]) <- alpha_v + beta*dist[t]
+		logit(lambda[t]) <- alpha_lambda + beta*dist[t]
+	
+		#  Steps
+		l[t] ~ dweib(v[t], lambda[t])  
+
+		}
+	}
